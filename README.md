@@ -25,7 +25,7 @@ bin/setup --skip-server
 bin/rails places:fetch places:load                     # GeoNames, ~20 MB, into storage/geonames
 SINCE=2026-10-01 bin/rails hn:backfill hn:match       # one month of posts, matched
 brew install ollama && ollama serve &                  # a free local model
-ollama pull qwen3:8b
+ollama pull qwen3:4b
 LIMIT=50 bin/rails hn:classify                        # see what the model makes of the newest 50
 bin/rails server                                       # http://localhost:3000, admin at /admin (password "dev")
 ```
@@ -54,7 +54,7 @@ The import is safe to run twice. A post you corrected by hand on the server keep
 - **Matching is too loose or too strict:**
   1. Edit `config/gazetteer/tech_words.txt` or the cue words in `PlaceMatcher`.
   2. Rerun matching from scratch with `RESET=1 bin/rails hn:match`, then `bin/rails hn:classify`.
-- **Model:** set `OLLAMA_MODEL` to any model Ollama can pull. `qwen3:8b` needs about 6 GB of RAM. Use a 3–4B model on a small server.
+- **Model:** set `OLLAMA_MODEL` to any model Ollama can pull. The default, `qwen3:4b`, needs about 3 GB of RAM and takes about 2 s a post on an M-series Mac; the full history's ~12k candidates take about 7 hours. A bigger model may do better, but run the eval first.
 - **Threshold:** `LOCAL_THRESHOLD` (default `0.6`) sets how sure the model must be before a post is shown. Check `/admin`'s "Unsure" tab before changing it.
 - **Prompt or model changes:** score them first with `bin/rails runner script/eval_classifier.rb`. It reclassifies the hand-labelled posts in `test/fixtures/files/classifier_labels.json` (a month of candidates, from October–November 2026) and prints precision and recall. It changes the development database, and the posts have to be there (`SINCE=2026-10-24 bin/rails hn:backfill hn:match`). The current prompt on `qwen3:4b` scores precision 1.0 and recall 0.75. Longer prompts with more examples scored worse (precision around 0.5), so keep it short.
 - **Common words:** run `bin/rails runner script/common_place_words.rb` to rebuild `config/gazetteer/common_words.txt` after a GeoNames update. It needs macOS's `/usr/share/dict`.
@@ -72,7 +72,7 @@ Set these variables:
 |---|---|
 | `RAILS_MASTER_KEY` | runtime only (see the top of `Dockerfile`) |
 | `ADMIN_PASSWORD` | turns on `/admin` |
-| `OLLAMA_MODEL` | optional, default `qwen3:8b` |
+| `OLLAMA_MODEL` | optional, default `qwen3:4b` |
 | `LOCAL_THRESHOLD` | optional, default `0.6` |
 
 On first boot:
