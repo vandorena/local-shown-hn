@@ -10,32 +10,48 @@ class LocalClassifier
   Verdict = Data.define(:local, :place_id, :confidence, :reason)
 
   SYSTEM = <<~PROMPT.freeze
-    You sort Show HN posts for a site that lists projects tied to a specific city, town, county or metro area.
+    You sort Show HN posts for a site that lists projects tied to one specific city, town, county or metro area.
 
-    A post is LOCAL when the project is for or about one particular place smaller than a country: it serves
-    people who live in or visit that place, uses that place's data (transit, zoning, housing, elections,
-    restaurants, weather), maps or models it, or is about its government, culture or history.
+    The candidate places were found by matching words, so most of them are coincidences: an app named
+    after a city, a maker who mentions where they live, a word that happens to be a town. Most posts you
+    see are NOT local. Say local only when the post itself shows the project is about that place.
 
-    A post is NOT local when:
-    - the place is only where the maker lives or works ("I built X from Berlin"), or a passing mention;
-    - the name means something else: a product, framework, company, person or word (Phoenix framework,
-      "Reading list", Zanzibar authorization, Haiku the model);
-    - the project covers a whole country, a state or province, or the world;
-    - the place in the post is not in the candidate list (then answer place 0).
+    The test: is the project mainly for, or about, people and things in that one place? A local project
+    serves people who live in or visit it, uses its data (transit, zoning, housing, elections, restaurants,
+    trash, ferries), maps or models it, or is about its government, culture or history. It would mean
+    little to someone with no interest in the place.
 
-    Answer with JSON only: {"local": true|false, "place": <number of the candidate, 0 for none>,
-    "confidence": <0 to 1, how sure you are of your answer>, "reason": "<one short sentence>"}.
+    Not local:
+    - the project shares a name with the place ("Trieste – a desktop app", "Vigo – config management");
+    - the place is only where the maker lives, works or got the idea ("I moved to Barcelona and built a
+      language app", "a startup from Toronto");
+    - the project works the same anywhere: job search, travel booking, finance, databases, dev tools;
+    - it covers a whole country, state or province, or the world;
+    - the place it is about is not in the list: answer place 0.
+
+    Examples:
+    - "Live arrivals for every bus in Lisbon" with Lisbon listed: local, Lisbon.
+    - "Isometric pixel-art map of my town, Burlington" with Burlington, Ontario listed: local.
+    - "Craoli – find jobs without bias", text says the team is in Zürich: not local.
+    - "Budget Friendly City Discovery" with Friendly, Maryland listed: not local, place 0.
+
+    Fill the fields in order. "project": what the project does, in a few words. "place_role": how the post
+    uses the place name: "about" (the project is about that place), "name" (a product or word), "maker"
+    (where the maker is), "mention" (in passing) or "none". Then "place", "local" and "confidence" (0 to 1;
+    below 0.6 when the post only hints at the place).
   PROMPT
 
+  # Properties are generated in this order, so the model describes the project before it decides.
   SCHEMA = {
     type: "object",
     properties: {
-      local: { type: "boolean" },
+      project: { type: "string" },
+      place_role: { type: "string", enum: %w[ about name maker mention none ] },
       place: { type: "integer", minimum: 0, maximum: PlaceMatcher::MAX_CANDIDATES },
-      confidence: { type: "number", minimum: 0, maximum: 1 },
-      reason: { type: "string" }
+      local: { type: "boolean" },
+      confidence: { type: "number", minimum: 0, maximum: 1 }
     },
-    required: %w[ local place confidence reason ]
+    required: %w[ project place_role place local confidence ]
   }.freeze
 
   TEXT_LIMIT = 1_500 # characters of the post's text; enough to tell, and keeps a CPU-only server quick
@@ -56,9 +72,11 @@ class LocalClassifier
     answer = ask(prompt(post, places))
     choice = answer.fetch("place").to_i
     place = places[choice - 1] if choice.between?(1, places.size)
-    local = answer.fetch("local") == true && !place.nil?
+    role = answer.fetch("place_role").to_s
+    # "about" is the model's own test for local; trust a verdict only when the two agree.
+    local = answer.fetch("local") == true && role == "about" && !place.nil?
     Verdict.new(local:, place_id: local ? place.id : nil, confidence: answer.fetch("confidence").to_f.clamp(0.0, 1.0),
-                reason: answer.fetch("reason").to_s.truncate(500))
+                reason: "#{answer.fetch('project').to_s.squish} (place: #{role})".truncate(500))
   rescue KeyError, TypeError, JSON::ParserError => e
     raise BadAnswer, e.message
   end

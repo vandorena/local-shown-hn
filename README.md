@@ -56,6 +56,7 @@ The import is safe to run twice. A post you corrected by hand on the server keep
   2. Rerun matching from scratch with `RESET=1 bin/rails hn:match`, then `bin/rails hn:classify`.
 - **Model:** set `OLLAMA_MODEL` to any model Ollama can pull. `qwen3:8b` needs about 6 GB of RAM. Use a 3–4B model on a small server.
 - **Threshold:** `LOCAL_THRESHOLD` (default `0.6`) sets how sure the model must be before a post is shown. Check `/admin`'s "Unsure" tab before changing it.
+- **Prompt or model changes:** score them first with `bin/rails runner script/eval_classifier.rb`. It reclassifies the hand-labelled posts in `test/fixtures/files/classifier_labels.json` (a month of candidates, from October–November 2026) and prints precision and recall. It changes the development database, and the posts have to be there (`SINCE=2026-10-24 bin/rails hn:backfill hn:match`). The current prompt on `qwen3:4b` scores precision 1.0 and recall 0.75. Longer prompts with more examples scored worse (precision around 0.5), so keep it short.
 - **Common words:** run `bin/rails runner script/common_place_words.rb` to rebuild `config/gazetteer/common_words.txt` after a GeoNames update. It needs macOS's `/usr/share/dict`.
 
 ## Deploy

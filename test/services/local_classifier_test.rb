@@ -27,17 +27,18 @@ class LocalClassifierTest < ActiveSupport::TestCase
   def classifier(fake) = LocalClassifier.new(url: "http://ollama:11434", model: "test-model", post: fake)
 
   test "maps the model's numbered choice back to the GeoNames place" do
-    fake = FakeOllama.new({ local: true, place: 1, confidence: 0.92, reason: "A bus tracker for Providence, RI." })
+    fake = FakeOllama.new({ project: "A bus tracker", place_role: "about", place: 1, local: true, confidence: 0.92 })
     verdict = classifier(fake).classify(@post)
 
     assert verdict.local
     assert_equal @ri.id, verdict.place_id
     assert_in_delta 0.92, verdict.confidence
+    assert_equal "A bus tracker (place: about)", verdict.reason
     uri, body = fake.requests.first
     assert_equal "http://ollama:11434/api/chat", uri.to_s
     assert_equal "test-model", body["model"]
     assert_equal false, body["stream"]
-    assert_equal %w[ local place confidence reason ], body.dig("format", "required")
+    assert_equal %w[ project place_role place local confidence ], body.dig("format", "required")
     prompt = body["messages"].last["content"]
     assert_includes prompt, "1. Providence, Rhode Island, United States (city, population 190,934)"
     assert_includes prompt, "2. Providence, Utah, United States"
@@ -45,9 +46,14 @@ class LocalClassifierTest < ActiveSupport::TestCase
   end
 
   test "local with no valid place counts as not local" do
-    verdict = classifier(FakeOllama.new({ local: true, place: 7, confidence: 0.8, reason: "Elsewhere." })).classify(@post)
+    verdict = classifier(FakeOllama.new({ project: "x", place_role: "about", place: 7, local: true, confidence: 0.8 })).classify(@post)
     assert_not verdict.local
     assert_nil verdict.place_id
+  end
+
+  test "local counts only when the model also says the project is about the place" do
+    answer = { project: "A desktop app named Providence", place_role: "name", place: 1, local: true, confidence: 0.9 }
+    assert_not classifier(FakeOllama.new(answer)).classify(@post).local
   end
 
   test "an answer that does not fit the schema is a BadAnswer" do
@@ -64,8 +70,8 @@ class LocalClassifierTest < ActiveSupport::TestCase
     other = Post.create!(hn_id: 2, title: "Show HN: Providence app", posted_at: 1.hour.ago, status: "candidate", candidate_place_ids: [ @ri.id ])
     third = Post.create!(hn_id: 3, title: "Show HN: Another", posted_at: 2.hours.ago, status: "candidate", candidate_place_ids: [ @ri.id ])
     fake = FakeOllama.new(
-      { local: true, place: 1, confidence: 0.9, reason: "Transit in Providence." },
-      "garbage", { local: false, place: 0, confidence: 0.7, reason: "An app named Providence." },
+      { project: "Transit in Providence", place_role: "about", place: 1, local: true, confidence: 0.9 },
+      "garbage", { project: "An app", place_role: "name", place: 0, local: false, confidence: 0.7 },
       LocalClassifier::Unavailable.new("connection refused")
     )
 
