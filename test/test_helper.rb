@@ -8,4 +8,3 @@ module ActiveSupport
     parallelize(workers: :number_of_processors)
   end
 end
-
