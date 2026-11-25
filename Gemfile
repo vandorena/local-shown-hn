@@ -51,3 +51,5 @@ end
 
 # Background jobs and the hourly scrape, in SQLite [https://github.com/rails/solid_queue]
 gem "solid_queue"
+
+gem "rubyzip", "~> 3.7"

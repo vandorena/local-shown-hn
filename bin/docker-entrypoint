@@ -3,6 +3,9 @@
 # If running the rails server then create or migrate existing database
 if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
   ./bin/rails db:prepare
+  # The GeoNames gazetteer (on the storage volume), refreshed when over a month old. Without it no new
+  # post can be matched to a place, but the site still serves what it has.
+  ./bin/rails places:refresh || echo "places: GeoNames refresh failed; new posts will wait to be matched"
 fi
 
 exec "${@}"

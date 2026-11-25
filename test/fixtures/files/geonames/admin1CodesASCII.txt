@@ -1,0 +1,6 @@
+GB.ENG	England	England	6269131
+US.AL	Alabama	Alabama	4829764
+US.RI	Rhode Island	Rhode Island	5224323
+US.UT	Utah	Utah	5549030
+US.AZ	Arizona	Arizona	5551752
+US.PA	Pennsylvania	Pennsylvania	6254927
