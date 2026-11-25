@@ -1,6 +1,6 @@
 <li class="post">
   <div class="post-title">
-    <%= link_to post.short_title, post.url.presence || post.hn_url, rel: "nofollow noopener" %>
+    <%= link_to post.short_title, post_link(post), rel: "nofollow noopener" %>
     <% if (host = post_host(post)) %><span class="host">(<%= host %>)</span><% end %>
   </div>
   <div class="post-meta">
@@ -8,7 +8,7 @@
       <%= link_to post.place.name, place_path(post.place), class: "chip", title: post.place.label %>
     <% end %>
     <span><%= pluralize(post.points, "point") %></span>
-    <span><%= link_to pluralize(post.num_comments, "comment"), post.hn_url %></span>
+    <span><%= link_to pluralize(post.num_comments, "comment"), hn_link(post) %></span>
     <span><time datetime="<%= post.posted_at.iso8601 %>" title="<%= post.posted_at.to_fs(:long) %>"><%= post.posted_at.to_date.to_fs(:long) %></time></span>
     <% if post.author %><span>by <%= link_to post.author, "https://news.ycombinator.com/user?id=#{CGI.escape(post.author)}" %></span><% end %>
   </div>

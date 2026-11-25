@@ -55,6 +55,13 @@ class SiteTest < ActionDispatch::IntegrationTest
     assert_select ".region h3", "Rhode Island"
   end
 
+  test "a post URL that is not http(s) links to the HN thread instead" do
+    @bus.update!(url: "javascript:alert(1)")
+    get root_path
+    assert_select "a[href^=javascript]", count: 0
+    assert_select ".post-title a[href=?]", "https://news.ycombinator.com/item?id=10"
+  end
+
   test "an unknown place is a 404" do
     get place_path("nowhere-at-all")
     assert_response :not_found
