@@ -20,6 +20,7 @@ class ScrapeJobTest < ActiveJob::TestCase
       assert_equal 7.days.ago, client.after
     end
     assert_equal 3, Post.count
+    assert_enqueued_with job: MatchJob
   end
 
   test "reaches back to the newest post we have when that is older than a week" do

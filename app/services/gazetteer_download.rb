@@ -10,7 +10,8 @@ class GazetteerDownload
   CITIES = "cities5000.txt".freeze
   ADMIN1 = "admin1CodesASCII.txt".freeze
   ADMIN2 = "admin2Codes.txt".freeze
-  FILES = [ CITIES, ADMIN1, ADMIN2 ].freeze
+  COUNTRIES = "countryInfo.txt".freeze
+  FILES = [ CITIES, ADMIN1, ADMIN2, COUNTRIES ].freeze
   MAX_AGE = 32.days
 
   def self.path(name, dir: DIR) = File.join(dir, name)
@@ -54,9 +55,10 @@ class GazetteerDownload
     FileUtils.rm_f([ part, zip ].compact)
   end
 
-  # Refuses an empty or truncated file: every line of these files is tab-separated, with at least 4 fields.
+  # Refuses an empty or truncated file: every line of these files is tab-separated, with at least 4 fields
+  # (countryInfo.txt opens with # comments).
   def check!(part)
-    lines = File.foreach(part).first(50)
+    lines = File.foreach(part).reject { it.start_with?("#") }.first(50)
     raise "#{File.basename(part)}: empty download" if lines.empty?
     raise "#{File.basename(part)}: not a GeoNames file" unless lines.all? { it.count("\t") >= 3 }
   end

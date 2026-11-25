@@ -9,7 +9,7 @@ class GazetteerLoaderTest < ActiveSupport::TestCase
     providence = Place.find_by!(geonames_id: 5224151)
     assert_equal "city", providence.kind
     assert_equal "Rhode Island", providence.admin1_name
-    assert_equal "Providence, Rhode Island, US", providence.label
+    assert_equal "Providence, Rhode Island, United States", providence.label
     assert_equal "providence-rhode-island-us", providence.slug
     assert_nil Place.find_by(name: "Old Town")
   end

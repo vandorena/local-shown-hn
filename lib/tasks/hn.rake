@@ -13,6 +13,13 @@ namespace :hn do
     puts "hn: done, #{total} posts fetched; #{Post.count} in the database"
   end
 
+  desc "Look for place names in every post still marked new (RESET=1 to redo every post not set by hand)"
+  task match: :environment do
+    Post.where(manual: false).where.not(status: "new").update_all(status: "new") if ENV["RESET"] == "1"
+    matched, candidates = MatchJob.perform_now
+    puts "hn: matched #{matched} posts, #{candidates} candidates"
+  end
+
   desc "Fetch new posts and refresh the last week's points now (what the hourly job does)"
   task scrape: :environment do
     ScrapeJob.perform_now

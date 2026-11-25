@@ -8,8 +8,8 @@ class Place < ApplicationRecord
 
   def to_param = slug
 
-  # "Providence, Rhode Island, US"
+  # "Providence, Rhode Island, United States"
   def label
-    [ name, admin1_name, country_code ].compact_blank.uniq.join(", ")
+    [ name, admin1_name, country_name || country_code ].compact_blank.uniq.join(", ")
   end
 end

@@ -14,13 +14,14 @@ class GazetteerLoader
   # Upserts every place and returns how many rows were written.
   def load!
     admin1 = read_admin1
+    countries = read_countries
     cities = read_cities(admin1)
     counties = read_counties(admin1, cities)
-    rows = with_unique_slugs(cities + counties)
+    rows = with_unique_slugs(cities + counties).each { it[:country_name] = countries[it[:country_code]] }
     now = Time.current
     rows.each_slice(BATCH) do |batch|
       Place.upsert_all(batch.map { it.merge(created_at: now, updated_at: now) }, unique_by: :geonames_id,
-                       update_only: %i[ name ascii_name kind country_code admin1 admin1_name admin2 lat lng population slug ])
+                       update_only: %i[ name ascii_name kind country_code country_name admin1 admin1_name admin2 lat lng population slug ])
     end
     rows.size
   end
@@ -36,6 +37,13 @@ class GazetteerLoader
   # "US.RI" => "Rhode Island"
   def read_admin1
     {}.tap { |names| each_row(GazetteerDownload::ADMIN1) { |code, name, ascii| names[code] = ascii.presence || name } }
+  end
+
+  # "US" => "United States"
+  def read_countries
+    {}.tap do |names|
+      each_row(GazetteerDownload::COUNTRIES) { |f| names[f[0]] = f[4] unless f[0].start_with?("#") }
+    end
   end
 
   def read_cities(admin1)
