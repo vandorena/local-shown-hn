@@ -1,0 +1,46 @@
+<% content_for :title, "Review – Local Show HN" %>
+
+<section class="intro">
+  <h1>Review</h1>
+  <p>Fix what the model got wrong. Changes made here stick: no scrape or rerun overrides them.</p>
+  <% if notice %><p class="notice" role="status"><%= notice %></p><% end %>
+</section>
+
+<nav class="sort tabs" aria-label="Review queues">
+  <% Admin::PostsController::TABS.each_key do |tab| %>
+    <%= link_to admin_posts_path(tab:), class: ("current" if tab == @tab) do %><%= tab.humanize %> <span class="count"><%= @counts[tab] %></span><% end %>
+  <% end %>
+</nav>
+
+<% if @posts.any? %>
+  <ol class="posts review">
+    <% @posts.each do |post| %>
+      <li class="post">
+        <div class="post-title">
+          <%= link_to post.short_title, post_link(post), rel: "nofollow noopener" %>
+          <span class="host">(<%= link_to "HN", hn_link(post) %>)</span>
+        </div>
+        <div class="post-meta">
+          <span class="chip"><%= post.manual? ? "by hand" : post.status.humanize %></span>
+          <% if post.place %><span><%= link_to post.place.label, place_path(post.place) %></span><% end %>
+          <% if post.confidence %><span><%= number_to_percentage(post.confidence * 100, precision: 0) %> sure</span><% end %>
+          <% if post.classifier_model %><span><%= post.classifier_model %></span><% end %>
+          <span><%= post.posted_at.to_date.to_fs(:long) %></span>
+        </div>
+        <% if post.reason.present? %><p class="reason"><%= post.reason %></p><% end %>
+        <div class="actions">
+          <% post.candidate_place_ids.filter_map { @candidates[it] }.each do |place| %>
+            <%= button_to "Local: #{place.label}", admin_post_path(post), method: :patch,
+                  params: { verdict: "local", place_id: place.id }, class: ("selected" if post.status_local? && post.place_id == place.id) %>
+          <% end %>
+          <%= button_to "Not local", admin_post_path(post), method: :patch, params: { verdict: "not_local" } %>
+          <%= button_to "Hide", admin_post_path(post), method: :patch, params: { verdict: "hidden" } %>
+          <% if post.manual? %><%= button_to "Reset", admin_post_path(post), method: :patch, params: { verdict: "reset" } %><% end %>
+        </div>
+      </li>
+    <% end %>
+  </ol>
+  <%= render "shared/pager", page: @page, total: @counts[@tab], per: Admin::PostsController::PER_PAGE %>
+<% else %>
+  <p class="empty">Nothing in this queue.</p>
+<% end %>

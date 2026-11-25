@@ -6,5 +6,10 @@ Rails.application.routes.draw do
   get "feed" => "posts#feed", as: :feed, defaults: { format: :atom }
   resources :places, only: %i[ index show ], param: :slug
 
+  namespace :admin do
+    resources :posts, only: %i[ index update ]
+    root "posts#index"
+  end
+
   root "posts#index"
 end
