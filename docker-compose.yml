@@ -1,0 +1,52 @@
+# Both halves of the app. On Coolify (as for findme), create a "Docker Compose" resource from this repo and set:
+#   RAILS_MASTER_KEY  runtime only, see the note at the top of Dockerfile
+#   ADMIN_PASSWORD    for /admin; without it the review pages are switched off
+#   OLLAMA_MODEL      optional; default qwen3:8b needs about 6 GB of RAM. On a small VPS try qwen3:4b
+# The web container downloads the GeoNames gazetteer into the storage volume on boot, and again on any
+# boot once it is a month old. The ollama container pulls OLLAMA_MODEL on first start (several GB).
+services:
+  web:
+    build: .
+    environment:
+      RAILS_MASTER_KEY: ${RAILS_MASTER_KEY}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:8b}
+      LOCAL_THRESHOLD: ${LOCAL_THRESHOLD:-0.6}
+    volumes:
+      - storage:/rails/storage
+    ports:
+      - "3000"
+    # Not service_healthy: the site works while the model is still downloading. Posts wait as candidates
+    # and are classified on the next hourly run.
+    depends_on:
+      - ollama
+
+  ollama:
+    image: ${OLLAMA_IMAGE:-ollama/ollama:latest}
+    environment:
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:8b}
+      OLLAMA_KEEP_ALIVE: 10m
+    # Serve, then pull the model if it isn't on the volume yet.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        ollama serve &
+        until ollama list >/dev/null 2>&1; do sleep 1; done
+        ollama pull "$$OLLAMA_MODEL" || echo "ollama: could not pull $$OLLAMA_MODEL; classification waits until it can"
+        wait
+    volumes:
+      - ollama:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama show \"$$OLLAMA_MODEL\" >/dev/null 2>&1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30m
+      retries: 3
+    # No published port: only the web container talks to the model.
+    expose:
+      - "11434"
+
+volumes:
+  storage:
+  ollama:

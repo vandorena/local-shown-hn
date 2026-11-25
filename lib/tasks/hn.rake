@@ -38,4 +38,18 @@ namespace :hn do
     })
     puts "hn: classified #{done}; #{Post.status_candidate.count} candidates left, #{Post.shown.count} shown"
   end
+
+  desc "Write every post and verdict as gzipped JSON lines (FILE=posts.jsonl.gz, default stdout)"
+  task export: :environment do
+    path = ENV["FILE"].presence
+    count = path ? File.open(path, "wb") { PostTransfer.new.export(it) } : PostTransfer.new.export($stdout.binmode)
+    warn "hn: exported #{count} posts#{" to #{path}" if path}"
+  end
+
+  desc "Load posts and verdicts from hn:export (FILE=posts.jsonl.gz, default stdin); safe to rerun"
+  task import: :environment do
+    path = ENV["FILE"].presence
+    count = path ? File.open(path, "rb") { PostTransfer.new.import(it) } : PostTransfer.new.import($stdin.binmode)
+    warn "hn: imported #{count} posts; #{Post.shown.count} shown, #{Post.status_candidate.count} waiting for the model"
+  end
 end
