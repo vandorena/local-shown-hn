@@ -1,0 +1,24 @@
+<% content_for :title, "Places – Local Show HN" %>
+
+<section class="intro">
+  <h1>Places</h1>
+  <p><%= pluralize(@total, "local post") %> across <%= pluralize(@countries.sum { it.last.size }, "place") %> in <%= pluralize(@countries.size, "country") %>.</p>
+</section>
+
+<% @countries.each do |country, places| %>
+  <section class="country">
+    <h2><%= country %> <span class="count"><%= places.sum(&:posts_count) %></span></h2>
+    <% places.group_by(&:admin1_name).sort_by { |region, ps| [ -ps.sum(&:posts_count), region.to_s ] }.each do |region, in_region| %>
+      <div class="region">
+        <% if region.present? && region != country %><h3><%= region %></h3><% end %>
+        <ul class="place-list">
+          <% in_region.sort_by { [ -it.posts_count, it.name ] }.each do |place| %>
+            <li><%= link_to place.name, place_path(place) %> <span class="count"><%= place.posts_count %></span></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+  </section>
+<% end %>
+
+<% if @countries.empty? %><p class="empty">No places yet.</p><% end %>

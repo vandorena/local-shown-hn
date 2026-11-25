@@ -9,6 +9,8 @@
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 
+    <meta name="description" content="Show HN projects tied to a specific city, town or county, on a map.">
+    <%= auto_discovery_link_tag :atom, feed_url, title: "Local Show HN" %>
     <%= yield :head %>
 
     <%# Enable PWA manifest for installable apps (make sure to enable in config/routes.rb too!) %>
@@ -22,6 +24,32 @@
   </head>
 
   <body>
-    <%= yield %>
+    <header class="site-header">
+      <div class="wrap">
+        <%= link_to root_path, class: "brand" do %>
+          <span class="brand-mark" aria-hidden="true"></span>Local Show HN
+        <% end %>
+        <nav>
+          <%= link_to "Map", root_path, class: ("current" if current_page?(root_path)) %>
+          <%= link_to "Places", places_path, class: ("current" if controller_name == "places") %>
+          <%= link_to "Feed", feed_path, title: "Atom feed of new local posts" %>
+        </nav>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <%= yield %>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        Show HN projects tied to a city, town or county.
+        Posts from <a href="https://news.ycombinator.com/show">Hacker News</a> via
+        <a href="https://hn.algolia.com/api">HN Search by Algolia</a>.
+        Places from <a href="https://www.geonames.org/">GeoNames</a> (CC BY 4.0).
+        Map &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors.
+        Matched by a local model, so expect the odd mistake.
+      </div>
+    </footer>
   </body>
 </html>

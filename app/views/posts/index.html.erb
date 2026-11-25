@@ -1,0 +1,30 @@
+<% content_for :title, @query.present? ? "#{@query} – Local Show HN" : "Local Show HN – Show HN projects for your town" %>
+
+<section class="intro">
+  <h1>Show HN, but local</h1>
+  <p>Projects people built for one city, town or county: transit trackers, zoning maps, guides, civic data.
+    <%= number_with_delimiter(@total) %> <%= @query.present? ? "matching “#{@query}”" : "so far" %>.</p>
+</section>
+
+<%= render "shared/map", places: @map_places %>
+
+<div class="toolbar">
+  <%= form_with url: root_path, method: :get, class: "search", role: "search" do |f| %>
+    <%= f.search_field :q, value: @query, placeholder: "Search a place: Providence, Ohio, Japan…", "aria-label": "Search places" %>
+    <%= f.hidden_field :sort, value: @sort %>
+    <%= f.submit "Search", name: nil %>
+  <% end %>
+  <div class="sort" role="group" aria-label="Sort">
+    <%= link_to "Newest", root_path(q: @query.presence, sort: nil), class: ("current" if @sort == "new") %>
+    <%= link_to "Top", root_path(q: @query.presence, sort: "top"), class: ("current" if @sort == "top") %>
+  </div>
+</div>
+
+<% if @posts.any? %>
+  <ol class="posts" start="<%= (@page - 1) * PostsController::PER_PAGE + 1 %>">
+    <%= render partial: "posts/post", collection: @posts %>
+  </ol>
+  <%= render "shared/pager", page: @page, total: @total, per: PostsController::PER_PAGE %>
+<% else %>
+  <p class="empty"><%= @query.present? ? "Nothing local for “#{@query}” yet." : "No local posts yet. The first scrape fills this in." %></p>
+<% end %>
