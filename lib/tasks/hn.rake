@@ -16,12 +16,26 @@ namespace :hn do
   desc "Look for place names in every post still marked new (RESET=1 to redo every post not set by hand)"
   task match: :environment do
     Post.where(manual: false).where.not(status: "new").update_all(status: "new") if ENV["RESET"] == "1"
-    matched, candidates = MatchJob.perform_now
+    matched, candidates = MatchJob.perform_now(classify: false)
     puts "hn: matched #{matched} posts, #{candidates} candidates"
   end
 
   desc "Fetch new posts and refresh the last week's points now (what the hourly job does)"
   task scrape: :environment do
     ScrapeJob.perform_now
+  end
+
+  desc "Send candidate posts to the local model, newest first (LIMIT=100 to stop early; Ctrl-C is safe)"
+  task classify: :environment do
+    classifier = LocalClassifier.new
+    total = Post.status_candidate.where(manual: false).count
+    started = Time.current
+    puts "hn: #{total} candidates, model #{classifier.model} at #{Rails.configuration.x.ollama_url}"
+    done = ClassifyJob.perform_now(classifier:, limit: ENV["LIMIT"]&.to_i, progress: lambda { |post, n|
+      rate = n / (Time.current - started)
+      verdict = post.status_local? ? "LOCAL #{post.place&.label} (#{post.confidence})" : "no"
+      puts "[#{n}/#{total} #{rate.round(2)}/s] #{post.short_title.truncate(60)} => #{verdict}"
+    })
+    puts "hn: classified #{done}; #{Post.status_candidate.count} candidates left, #{Post.shown.count} shown"
   end
 end
