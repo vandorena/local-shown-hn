@@ -1,0 +1,41 @@
+# Optional: classify with a free local model in Ollama instead of the Anthropic API.
+#   docker compose -f docker-compose.yml -f docker-compose.ollama.yml up
+# It needs about 3 GB more RAM for qwen3:4b, and is much slower on a CPU-only server.
+services:
+  web:
+    environment:
+      CLASSIFIER: ollama
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b}
+    # Not service_healthy: the site works while the model is still downloading. Posts wait as candidates
+    # and are classified on the next hourly run.
+    depends_on:
+      - ollama
+
+  ollama:
+    image: ${OLLAMA_IMAGE:-ollama/ollama:latest}
+    environment:
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b}
+      OLLAMA_KEEP_ALIVE: 10m
+    # Serve, then pull the model if it isn't on the volume yet.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        ollama serve &
+        until ollama list >/dev/null 2>&1; do sleep 1; done
+        ollama pull "$$OLLAMA_MODEL" || echo "ollama: could not pull $$OLLAMA_MODEL; classification waits until it can"
+        wait
+    volumes:
+      - ollama:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama show \"$$OLLAMA_MODEL\" >/dev/null 2>&1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30m
+      retries: 3
+    # No published port: only the web container talks to the model.
+    expose:
+      - "11434"
+
+volumes:
+  ollama:

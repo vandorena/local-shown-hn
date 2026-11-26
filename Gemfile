@@ -53,3 +53,5 @@ end
 gem "solid_queue"
 
 gem "rubyzip", "~> 3.7"
+
+gem "anthropic", "~> 2.14"

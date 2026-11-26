@@ -27,11 +27,12 @@ namespace :hn do
 
   desc "Send candidate posts to the local model, newest first (LIMIT=100 to stop early; Ctrl-C is safe)"
   task classify: :environment do
-    classifier = LocalClassifier.new
+    classifier = LocalClassifier.default
+    threads = Integer(ENV.fetch("THREADS") { classifier.is_a?(ClaudeClassifier) ? 4 : 1 })
     total = Post.status_candidate.where(manual: false).count
     started = Time.current
-    puts "hn: #{total} candidates, model #{classifier.model} at #{Rails.configuration.x.ollama_url}"
-    done = ClassifyJob.perform_now(classifier:, limit: ENV["LIMIT"]&.to_i, progress: lambda { |post, n|
+    puts "hn: #{total} candidates, model #{classifier.model}, #{threads} at a time"
+    done = ClassifyJob.perform_now(classifier:, threads:, limit: ENV["LIMIT"]&.to_i, progress: lambda { |post, n|
       rate = n / (Time.current - started)
       verdict = post.status_local? ? "LOCAL #{post.place&.label} (#{post.confidence})" : "no"
       puts "[#{n}/#{total} #{rate.round(2)}/s] #{post.short_title.truncate(60)} => #{verdict}"

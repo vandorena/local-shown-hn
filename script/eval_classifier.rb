@@ -4,7 +4,7 @@
 path = ARGV.first || Rails.root.join("test/fixtures/files/classifier_labels.json")
 labels = JSON.parse(File.read(path)).transform_keys(&:to_i)
 posts = Post.where(hn_id: labels.keys, manual: false)
-classifier = LocalClassifier.new
+classifier = LocalClassifier.default
 started = Time.current
 unless ENV["SCORE_ONLY"] == "1"
   posts.update_all(status: "candidate", place_id: nil, confidence: nil, classified_at: nil)

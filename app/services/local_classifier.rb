@@ -63,6 +63,12 @@ class LocalClassifier
 
   attr_reader :model
 
+  # The classifier the config picks: Claude when CLASSIFIER is "claude" (the default with an Anthropic API
+  # key), otherwise the local Ollama model.
+  def self.default
+    Rails.configuration.x.classifier == "claude" ? ClaudeClassifier.new : new
+  end
+
   # post: takes a URI and a JSON body, returns the response body (tests pass a fake).
   def initialize(url: Rails.configuration.x.ollama_url, model: Rails.configuration.x.ollama_model, post: method(:http_post))
     @uri = URI.join(url, "/api/chat")
