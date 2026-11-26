@@ -13,5 +13,6 @@ class PlacesController < ApplicationController
     @place.posts_count = @posts.size
     @county = @place.county
     @nearby = @place.nearby(Place.with_post_counts(Post.shown))
+    @map_places = [ @place, *@nearby ]
   end
 end

@@ -9,7 +9,7 @@
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 
-    <meta name="description" content="Show HN projects tied to a specific city, town or county, listed like the HN front page.">
+    <meta name="description" content="Show HN projects tied to a specific city, town or county, on a map, listed like the HN front page.">
     <%= auto_discovery_link_tag :atom, feed_url, title: "Local Show HN" %>
     <%= yield :head %>
 
@@ -45,6 +45,7 @@
           Show HN projects tied to a city, town or county. Picked by a local model, so expect the odd mistake.<br>
           Posts from <a href="https://news.ycombinator.com/show">Hacker News</a> via <a href="https://hn.algolia.com/api">Algolia</a> |
           places from <a href="https://www.geonames.org/">GeoNames</a> (CC BY 4.0) |
+          map &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> |
           contact <a href="mailto:morgan@morgz.org">morgan@morgz.org</a>
         </p>
         <%= form_with url: root_path, method: :get, class: "search", role: "search" do |f| %>

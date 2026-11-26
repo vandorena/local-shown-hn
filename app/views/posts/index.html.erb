@@ -1,5 +1,7 @@
 <% content_for :title, @query.present? ? "#{@query} | Local Show HN" : "Local Show HN" %>
 
+<%= render "shared/map", places: @map_places %>
+
 <% if @query.present? %>
   <p class="note"><%= pluralize(@total, "local post") %> matching “<%= @query %>” | <%= link_to "clear", root_path(sort: (@sort if @sort == "top")) %></p>
 <% end %>

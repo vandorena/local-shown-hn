@@ -1,5 +1,7 @@
 <% content_for :title, "#{@place.name} | Local Show HN" %>
 
+<%= render "shared/map", places: @map_places, focus: @place %>
+
 <section class="place-head">
   <h1><%= @place.name %></h1>
   <p class="note">

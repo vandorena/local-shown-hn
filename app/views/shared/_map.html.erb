@@ -1,0 +1,5 @@
+<%# places: Places with posts_count set. focus: the place to centre on, if any. %>
+<div class="map" data-controller="map"
+     data-map-points-value="<%= places.map { it.map_point(place_path(it)) }.to_json %>"
+     <% if local_assigns[:focus] %>data-map-focus-value="<%= [ focus.lat, focus.lng ].to_json %>"<% end %>
+     role="region" aria-label="Map of places with local posts"></div>

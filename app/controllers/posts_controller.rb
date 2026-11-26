@@ -1,4 +1,4 @@
-# The front page: every post the model is sure is about a place, as a list.
+# The front page: every post the model is sure is about a place, on a map and in a list.
 class PostsController < ApplicationController
   PER_PAGE = 50
 
@@ -8,6 +8,7 @@ class PostsController < ApplicationController
     scope = Post.shown.includes(:place)
     scope = scope.joins(:place).merge(Place.search(@query)) if @query.present?
     @total = scope.count
+    @map_places = Place.with_post_counts(scope)
     @page = [ params[:page].to_i, 1 ].max
     @posts = scope.order(@sort == "top" ? { points: :desc } : { posted_at: :desc })
                   .offset((@page - 1) * PER_PAGE).limit(PER_PAGE)

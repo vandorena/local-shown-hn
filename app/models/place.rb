@@ -62,4 +62,7 @@ class Place < ApplicationRecord
     a = Math.sin(dlat / 2)**2 + Math.cos(lat * rad) * Math.cos(other.lat * rad) * Math.sin(dlng / 2)**2
     6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
   end
+
+  # What the map needs: [lat, lng, name, url, count].
+  def map_point(url) = [ lat.round(4), lng.round(4), label, url, posts_count ]
 end
