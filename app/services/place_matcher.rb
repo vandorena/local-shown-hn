@@ -1,7 +1,9 @@
 # Finds the towns and counties a Show HN post might be about, cheaply, so only those posts go to the
 # local model. It only finds candidates; LocalClassifier decides.
 #
-# A name matches when its words appear capitalised in the title or text, or anywhere in the URL.
+# A name matches when its words appear capitalised in the title or text, or anywhere in the URL. In a
+# hostname it may also start or end a run-together word (melbournetrams, isoburlington, newyorkbikes), but
+# only for big places and only with a local cue word.
 #   - Strong names count on their own: names of two or more words ("Salt Lake City"), and one-word names of
 #     places with 100,000+ people that are not ordinary words ("Seattle", "Lagos").
 #   - Weak names need more: a qualifier right after them ("Reading, PA", "Faro, Portugal"), or a local cue
@@ -13,6 +15,9 @@
 class PlaceMatcher
   MAX_WORDS = 4
   MAX_CANDIDATES = 5
+  HOST_MIN = 5 # shortest name found inside a run-together hostname word; shorter ones are mostly noise
+  # Only big, unambiguous places are looked for inside hostname words (see strong?): smaller names turn up
+  # inside ordinary words and people's names far too often (salemove, austinkpickett).
   STRONG_POPULATION = 100_000
   SOURCE_BONUS = { title: 3.0, url: 1.5, text: 0.0 }.freeze
   # Words that suggest a post is about a place. Kept to ones HN rarely uses otherwise: no "local"
@@ -53,8 +58,10 @@ class PlaceMatcher
 
   # Returns up to MAX_CANDIDATES place ids, most likely first; empty when nothing matched.
   def candidates(title:, text: nil, url: nil)
-    sources = { title: tokens(title.to_s.sub(/\A(?:Show HN:\s*)+/i, "")), text: tokens(plain(text)), url: url_tokens(url) }
+    sources = { title: tokens(title.to_s.sub(/\A(?:Show HN:\s*)+/i, "")), text: tokens(plain(text)), url: url_tokens(url, split: true) }
     cue = sources.values.flatten.any? { LOCAL_CUES.include?(it.norm) }
+    # A name inside a hostname word is weak evidence (bananaide, temperature), so it needs a cue too.
+    sources[:url] = url_tokens(url, split: false) unless cue
     hits = sources.flat_map { |source, toks| scan(toks, source, cue) }
     hits.group_by(&:place_id).map { |id, hs| [ id, hs.sum(&:score) ] }
         .sort_by { |_, score| -score }.first(MAX_CANDIDATES).map(&:first)
@@ -68,6 +75,7 @@ class PlaceMatcher
     @upper_qualifiers = Hash.new { |h, k| h[k] = Set.new } # place id => 2-letter codes that count only in capitals
     @population = {}
     @biggest = Hash.new(0) # normalized name => population of the biggest place with that name
+    @squashed = {} # "newyorkcity" => "new york city", for names run together in a hostname
     places.pluck(:id, :name, :ascii_name, :population, :admin1, :admin1_name, :country_code, :country_name).each do |id, name, ascii, pop, a1, a1_name, cc, c_name|
       @population[id] = pop
       [ name, ascii ].map { self.class.normalize(it) }.uniq.each do |key|
@@ -87,6 +95,12 @@ class PlaceMatcher
       @names[short] = @names[long]
       @biggest[short] = @biggest[long]
     end
+    @names.each_key do |key|
+      squashed = key.delete(" ")
+      next if squashed.length < HOST_MIN || !strong?(key, key.count(" ") + 1) || @tech.include?(key)
+      @squashed[squashed] = key if @biggest[key] > @biggest[@squashed[squashed]].to_i
+    end
+    @squashed["nyc"] = "nyc"
   end
 
   # Longest match first, left to right: "New York City" is one match, not also "New York" and "York".
@@ -152,15 +166,29 @@ class PlaceMatcher
     end
   end
 
-  # Host and path words, lowercase: "providence-bus.org/routes" -> providence, bus, org, routes.
-  def url_tokens(url)
+  # Host and path words, lowercase: "providence-bus.org/routes" -> providence, bus, routes. With split,
+  # host words that run a place name together with other words are split: "provobus" -> provo, bus.
+  def url_tokens(url, split:)
     return [] if url.blank?
     uri = URI.parse(url)
-    words = "#{uri.host.to_s.delete_prefix('www.')} #{uri.path}".split(/[^[:alnum:]]+/)
-    words.reject { %w[ com org net io app dev github gitlab html ].include?(it.downcase) }
-         .map { Token.new(norm: self.class.normalize(it), capitalized: false, upcase: false, initial: false) }.reject { it.norm.empty? }
+    skip = %w[ www com org net io app dev github gitlab html ]
+    host = uri.host.to_s.downcase.split(/[^[:alnum:]]+/).reject { skip.include?(it) }.flat_map { split ? split_host_word(it) : [ it ] }
+    path = uri.path.to_s.split(/[^[:alnum:]]+/).reject { skip.include?(it.downcase) }.map { self.class.normalize(it) }
+    (host + path).reject(&:empty?).flat_map(&:split)
+                 .map { Token.new(norm: it, capitalized: false, upcase: false, initial: false) }
   rescue URI::InvalidURIError
     []
+  end
+
+  # "isoburlington" -> ["iso", "burlington"]; a word that is already a name, or holds none, stays whole.
+  def split_host_word(word)
+    return [ word ] if @names.key?(word) || word.length < HOST_MIN + 2
+
+    (word.length - 2).downto(HOST_MIN) do |len|
+      if (key = @squashed[word[0, len]]) then return [ key, word[len..] ] end
+      if (key = @squashed[word[-len..]]) then return [ word[0...-len], key ] end
+    end
+    [ word ]
   end
 
   def plain(html)

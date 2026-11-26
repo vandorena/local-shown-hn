@@ -30,6 +30,12 @@ class PlaceMatcherTest < ActiveSupport::TestCase
     [ "Show HN: a provo thing", nil, nil, nil ],
     [ "Show HN: Show HN: Provo food trucks", nil, nil, "Provo, Utah, United States" ],
     [ "Show HN: Bus arrival times", nil, "https://providence-buses.org/", "Providence, Rhode Island, United States" ],
+    [ "Show HN: Restaurant finder", nil, "https://provoeats.com/", nil ],
+    [ "Show HN: Restaurant finder for my town", nil, "https://provoeats.com/", "Provo, Utah, United States" ],
+    [ "Show HN: Live arrivals", nil, "https://eastprovidencebus.org/", "East Providence, Rhode Island, United States" ],
+    [ "Show HN: Pixel-art map of downtown", nil, "https://isoprovo.app/", "Provo, Utah, United States" ],
+    [ "Show HN: Speed reading", nil, "https://readingfast.app/", nil ],
+    [ "Show HN: Phone builds", nil, "https://mobilebuilds.dev/", nil ],
     [ "Show HN: A transit app", "<p>Providence has slow buses.", nil, nil ],
     [ "Show HN: A transit app", "I live in Providence and the buses are slow.", nil, "Providence, Rhode Island, United States" ],
     [ "Show HN: Budgeting for us, by us", nil, nil, nil ]

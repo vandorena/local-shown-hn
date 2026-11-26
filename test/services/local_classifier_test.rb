@@ -26,14 +26,33 @@ class LocalClassifierTest < ActiveSupport::TestCase
 
   def classifier(fake) = LocalClassifier.new(url: "http://ollama:11434", model: "test-model", post: fake)
 
+  test "a local verdict needs the model's summary to name the place" do
+    answer = { project: "Scoring software for cycling races", place_role: "about", place: 1, local: true, confidence: 0.9 }
+    assert_not classifier(FakeOllama.new(answer)).classify(@post).local
+
+    county = Place.find_by!(name: "Providence County")
+    @post.update!(candidate_place_ids: [ county.id ])
+    answer = { project: "Property records in Providence", place_role: "about", place: 1, local: true, confidence: 0.9 }
+    assert classifier(FakeOllama.new(answer)).classify(@post).local
+  end
+
+  test "goes with the candidate the summary names when the model picks another number" do
+    provo = Place.find_by!(name: "Provo")
+    @post.update!(candidate_place_ids: [ @ri.id, provo.id ])
+    answer = { project: "Trail maps around Provo", place_role: "about", place: 1, local: true, confidence: 0.9 }
+    verdict = classifier(FakeOllama.new(answer)).classify(@post)
+    assert verdict.local
+    assert_equal provo.id, verdict.place_id
+  end
+
   test "maps the model's numbered choice back to the GeoNames place" do
-    fake = FakeOllama.new({ project: "A bus tracker", place_role: "about", place: 1, local: true, confidence: 0.92 })
+    fake = FakeOllama.new({ project: "A bus tracker for Providence", place_role: "about", place: 1, local: true, confidence: 0.92 })
     verdict = classifier(fake).classify(@post)
 
     assert verdict.local
     assert_equal @ri.id, verdict.place_id
     assert_in_delta 0.92, verdict.confidence
-    assert_equal "A bus tracker (place: about)", verdict.reason
+    assert_equal "A bus tracker for Providence (place: about)", verdict.reason
     uri, body = fake.requests.first
     assert_equal "http://ollama:11434/api/chat", uri.to_s
     assert_equal "test-model", body["model"]

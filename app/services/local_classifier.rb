@@ -17,9 +17,10 @@ class LocalClassifier
     see are NOT local. Say local only when the post itself shows the project is about that place.
 
     The test: is the project mainly for, or about, people and things in that one place? A local project
-    serves people who live in or visit it, uses its data (transit, zoning, housing, elections, restaurants,
-    trash, ferries), maps or models it, or is about its government, culture or history. It would mean
-    little to someone with no interest in the place.
+    serves people who live in or visit it (classes, alerts, bookings, guides there), uses its data (transit,
+    zoning, housing, elections, restaurants, trash, ferries), maps, models or draws it, is a game or story
+    set in it, or is about its government, culture or history. It would mean little to someone with no
+    interest in the place.
 
     Not local:
     - the project shares a name with the place ("Trieste – a desktop app", "Vigo – config management");
@@ -32,11 +33,15 @@ class LocalClassifier
     Examples:
     - "Live arrivals for every bus in Lisbon" with Lisbon listed: local, Lisbon.
     - "Isometric pixel-art map of my town, Burlington" with Burlington, Ontario listed: local.
+    - "A driving game through the streets of Lyon" with Lyon listed: local, Lyon.
+    - "Book kids' swim classes in Nairobi" with Nairobi listed: local, Nairobi.
     - "Craoli – find jobs without bias", text says the team is in Zürich: not local.
     - "Budget Friendly City Discovery" with Friendly, Maryland listed: not local, place 0.
 
-    Fill the fields in order. "project": what the project does, in a few words. "place_role": how the post
-    uses the place name: "about" (the project is about that place), "name" (a product or word), "maker"
+    Fill the fields in order. "project": what the project does, in a few words, naming the place if the
+    project is about one. "place_role": how the post
+    uses the place name: "about" (the project is about, set in or for that place), "name" (only borrowed as
+    a product name or another word; the project has nothing to do with the place), "maker"
     (where the maker is), "mention" (in passing) or "none". Then "place", "local" and "confidence" (0 to 1;
     below 0.6 when the post only hints at the place).
   PROMPT
@@ -73,15 +78,29 @@ class LocalClassifier
     choice = answer.fetch("place").to_i
     place = places[choice - 1] if choice.between?(1, places.size)
     role = answer.fetch("place_role").to_s
-    # "about" is the model's own test for local; trust a verdict only when the two agree.
+    project = answer.fetch("project").to_s.squish
+    # "about" is the model's own test for local; trust a verdict only when the two agree, and only when its
+    # summary of the project names the place. When the town is just where the maker lives, it doesn't.
+    # The model sometimes picks the wrong number but names the right place ("Bay Area" -> Oakland, then
+    # "San Francisco Bay Area" in its summary); go with the place it names.
+    place = places.find { names?(project, it) } unless place && names?(project, place)
     local = answer.fetch("local") == true && role == "about" && !place.nil?
     Verdict.new(local:, place_id: local ? place.id : nil, confidence: answer.fetch("confidence").to_f.clamp(0.0, 1.0),
-                reason: "#{answer.fetch('project').to_s.squish} (place: #{role})".truncate(500))
+                reason: "#{project} (place: #{role})".truncate(500))
   rescue KeyError, TypeError, JSON::ParserError => e
     raise BadAnswer, e.message
   end
 
   private
+
+  # Whether text names the place: "Providence", "NYC" for New York City, "Providence" for Providence County.
+  def names?(text, place)
+    words = " #{PlaceMatcher.normalize(text)} ".gsub(" new york times ", " ")
+    names = [ place.name, place.ascii_name ].compact.map { PlaceMatcher.normalize(it) }
+    names += names.map { it.sub(/ (county|district|parish|borough|municipality|province|prefecture)\z/, "") } if place.county?
+    names += PlaceMatcher::ALIASES.filter_map { |short, long| short if names.include?(long) }
+    names.uniq.reject(&:empty?).any? { words.include?(" #{it} ") }
+  end
 
   def prompt(post, places)
     text = post.story_text.present? ? CGI.unescapeHTML(Rails::HTML5::FullSanitizer.new.sanitize(post.story_text)).squish.truncate(TEXT_LIMIT) : "(none)"
