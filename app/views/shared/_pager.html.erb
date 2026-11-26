@@ -1,8 +1,4 @@
 <% pages = (total.to_f / per).ceil %>
-<% if pages > 1 %>
-  <nav class="pager" aria-label="Pages">
-    <% if page > 1 %><%= link_to "← Newer", url_for(request.query_parameters.merge(page: page - 1)) %><% end %>
-    <span>Page <%= page %> of <%= pages %></span>
-    <% if page < pages %><%= link_to "Older →", url_for(request.query_parameters.merge(page: page + 1)) %><% end %>
-  </nav>
+<% if page < pages %>
+  <p class="more"><%= link_to "More", url_for(request.query_parameters.merge(page: page + 1)), rel: "next" %></p>
 <% end %>

@@ -15,14 +15,13 @@ class SiteTest < ActionDispatch::IntegrationTest
     @rejected = Post.create!(hn_id: 13, title: "Show HN: Reading list", posted_at: 1.hour.ago, status: "not_local")
   end
 
-  test "the front page lists posts the model is sure of, newest first, with a map" do
+  test "the front page lists posts the model is sure of, newest first" do
     get root_path
     assert_response :success
     assert_select ".post-title a", text: "East Providence zoning lookup"
     assert_select ".post-title a", text: "Providence app", count: 0
     assert_select ".post-title a", text: "Reading list", count: 0
     assert_equal [ "East Providence zoning lookup", "Providence bus tracker" ], css_select(".post-title a").map(&:text)
-    assert_select ".map[data-controller=map]"
   end
 
   test "sorting by points and searching by place" do

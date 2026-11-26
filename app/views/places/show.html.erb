@@ -1,15 +1,13 @@
-<% content_for :title, "#{@place.name} – Local Show HN" %>
+<% content_for :title, "#{@place.name} | Local Show HN" %>
 
-<section class="intro">
-  <p class="crumbs"><%= link_to "Places", places_path %> › <%= @place.region %></p>
+<section class="place-head">
   <h1><%= @place.name %></h1>
-  <p>
-    <%= pluralize(@posts.size, "Show HN post") %> about <%= @place.county? ? "this county and its towns" : "this #{@place.population >= 100_000 ? 'city' : 'town'}" %>.
-    <% if @county %>In <%= link_to @county.name, place_path(@county) %>.<% end %>
+  <p class="note">
+    <%= @place.region %> |
+    <%= pluralize(@posts.size, "post") %> about <%= @place.county? ? "this county and its towns" : "this #{@place.population >= 100_000 ? 'city' : 'town'}" %>
+    <% if @county %>| in <%= link_to @county.name, place_path(@county) %><% end %>
   </p>
 </section>
-
-<%= render "shared/map", places: @map_places, focus: @place %>
 
 <% if @posts.any? %>
   <ol class="posts">
@@ -20,12 +18,8 @@
 <% end %>
 
 <% if @nearby.any? %>
-  <section class="nearby">
-    <h2>Nearby</h2>
-    <ul class="place-list">
-      <% @nearby.each do |place| %>
-        <li><%= link_to place.name, place_path(place) %> <span class="count"><%= place.posts_count %></span></li>
-      <% end %>
-    </ul>
-  </section>
+  <p class="nearby">
+    Nearby:
+    <%= safe_join(@nearby.map { |place| safe_join([ link_to(place.name, place_path(place)), " ", tag.span("(#{place.posts_count})", class: "count") ]) }, " | ") %>
+  </p>
 <% end %>

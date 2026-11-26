@@ -9,7 +9,7 @@
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 
-    <meta name="description" content="Show HN projects tied to a specific city, town or county, on a map.">
+    <meta name="description" content="Show HN projects tied to a specific city, town or county, listed like the HN front page.">
     <%= auto_discovery_link_tag :atom, feed_url, title: "Local Show HN" %>
     <%= yield :head %>
 
@@ -24,32 +24,34 @@
   </head>
 
   <body>
-    <header class="site-header">
-      <div class="wrap">
-        <%= link_to root_path, class: "brand" do %>
-          <span class="brand-mark" aria-hidden="true"></span>Local Show HN
-        <% end %>
+    <div class="page">
+      <header class="site-header">
+        <%= link_to root_path, class: "logo", "aria-label": "Local Show HN" do %>L<% end %>
         <nav>
-          <%= link_to "Map", root_path, class: ("current" if current_page?(root_path)) %>
-          <%= link_to "Places", places_path, class: ("current" if controller_name == "places") %>
-          <%= link_to "Feed", feed_path, title: "Atom feed of new local posts" %>
+          <%= link_to "Local Show HN", root_path, class: "brand" %>
+          <%= link_to "new", root_path, class: ("current" if controller_name == "posts" && params[:sort] != "top") %> |
+          <%= link_to "top", root_path(sort: "top"), class: ("current" if params[:sort] == "top") %> |
+          <%= link_to "places", places_path, class: ("current" if controller_name == "places") %> |
+          <%= link_to "feed", feed_path, title: "Atom feed of new local posts" %>
         </nav>
-      </div>
-    </header>
+      </header>
 
-    <main class="wrap">
-      <%= yield %>
-    </main>
+      <main>
+        <%= yield %>
+      </main>
 
-    <footer class="site-footer">
-      <div class="wrap">
-        Show HN projects tied to a city, town or county.
-        Posts from <a href="https://news.ycombinator.com/show">Hacker News</a> via
-        <a href="https://hn.algolia.com/api">HN Search by Algolia</a>.
-        Places from <a href="https://www.geonames.org/">GeoNames</a> (CC BY 4.0).
-        Map &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors.
-        Matched by a local model, so expect the odd mistake.
-      </div>
-    </footer>
+      <footer class="site-footer">
+        <p>
+          Show HN projects tied to a city, town or county. Picked by a local model, so expect the odd mistake.<br>
+          Posts from <a href="https://news.ycombinator.com/show">Hacker News</a> via <a href="https://hn.algolia.com/api">Algolia</a> |
+          places from <a href="https://www.geonames.org/">GeoNames</a> (CC BY 4.0) |
+          contact <a href="mailto:morgan@morgz.org">morgan@morgz.org</a>
+        </p>
+        <%= form_with url: root_path, method: :get, class: "search", role: "search" do |f| %>
+          <label for="q">Search places:</label>
+          <%= f.search_field :q, id: "q", value: @query, "aria-label": "Search places" %>
+        <% end %>
+      </footer>
+    </div>
   </body>
 </html>

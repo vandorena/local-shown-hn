@@ -1,6 +1,6 @@
 # Local Show HN
 
-Show HN projects tied to one city, town or county (transit trackers, zoning maps, local guides, civic data), shown on a map.
+Show HN projects tied to one city, town or county (transit trackers, zoning maps, local guides, civic data), listed in the plain Hacker News style.
 
 ## How it works
 
@@ -88,5 +88,4 @@ On first boot:
 - Posts: [Hacker News](https://news.ycombinator.com/show), via [HN Search by Algolia](https://hn.algolia.com/api).
 - Places: [GeoNames](https://www.geonames.org/), CC BY 4.0.
 - Common-word list: generated from Webster's Second International (public domain).
-- Map tiles: © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors.
 - Base app and deployment: findme.

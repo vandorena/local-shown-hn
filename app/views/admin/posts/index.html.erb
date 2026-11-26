@@ -1,15 +1,10 @@
 <% content_for :title, "Review – Local Show HN" %>
 
-<section class="intro">
-  <h1>Review</h1>
-  <p>Fix what the model got wrong. Changes made here stick: no scrape or rerun overrides them.</p>
-  <% if notice %><p class="notice" role="status"><%= notice %></p><% end %>
-</section>
+<p class="note">Fix what the model got wrong. Changes made here stick: no scrape or rerun overrides them.</p>
+<% if notice %><p class="note notice" role="status"><%= notice %></p><% end %>
 
-<nav class="sort tabs" aria-label="Review queues">
-  <% Admin::PostsController::TABS.each_key do |tab| %>
-    <%= link_to admin_posts_path(tab:), class: ("current" if tab == @tab) do %><%= tab.humanize %> <span class="count"><%= @counts[tab] %></span><% end %>
-  <% end %>
+<nav class="tabs" aria-label="Review queues">
+  <%= safe_join(Admin::PostsController::TABS.keys.map { |tab| link_to("#{tab} (#{@counts[tab]})", admin_posts_path(tab:), class: ("current" if tab == @tab)) }, " | ") %>
 </nav>
 
 <% if @posts.any? %>
@@ -21,11 +16,13 @@
           <span class="host">(<%= link_to "HN", hn_link(post) %>)</span>
         </div>
         <div class="post-meta">
-          <span class="chip"><%= post.manual? ? "by hand" : post.status.humanize %></span>
-          <% if post.place %><span><%= link_to post.place.label, place_path(post.place) %></span><% end %>
-          <% if post.confidence %><span><%= number_to_percentage(post.confidence * 100, precision: 0) %> sure</span><% end %>
-          <% if post.classifier_model %><span><%= post.classifier_model %></span><% end %>
-          <span><%= post.posted_at.to_date.to_fs(:long) %></span>
+          <%= safe_join([
+                post.manual? ? "by hand" : post.status.humanize.downcase,
+                (link_to(post.place.label, place_path(post.place)) if post.place),
+                ("#{number_to_percentage(post.confidence * 100, precision: 0)} sure" if post.confidence),
+                post.classifier_model,
+                post.posted_at.to_date.to_fs(:long)
+              ].compact, " | ") %>
         </div>
         <% if post.reason.present? %><p class="reason"><%= post.reason %></p><% end %>
         <div class="actions">
