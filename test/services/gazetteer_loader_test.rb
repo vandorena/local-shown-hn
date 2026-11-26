@@ -23,10 +23,19 @@ class GazetteerLoaderTest < ActiveSupport::TestCase
     assert Place.exists?(name: "Berks County")
   end
 
-  test "keeps same-named places apart, without countries or states" do
+  test "keeps same-named places apart, without countries" do
     assert_equal 2, Place.where(name: "Providence").count
     assert_equal 2, Place.where(name: "Reading").count
-    assert_empty Place.where(name: [ "Rhode Island", "England", "United States" ])
+    assert_empty Place.where(name: [ "United States", "United Kingdom" ])
+  end
+
+  test "small states are places, at the centre of their towns; big ones are not" do
+    Place.delete_all
+    GazetteerLoader.new(dir: DIR, small_state: 300_000).load!
+    state = Place.find_by!(name: "Rhode Island")
+    assert_equal [ "state", "rhode-island-us", "Rhode Island, United States" ], [ state.kind, state.slug, state.label ]
+    assert_in_delta 41.82, state.lat, 0.02
+    assert_nil Place.find_by(name: "England") # its towns add up to 318,014
   end
 
   test "loading twice updates in place" do

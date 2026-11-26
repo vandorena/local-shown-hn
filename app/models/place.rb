@@ -1,7 +1,8 @@
-# A city, town or county from GeoNames. Countries and states are never places here: the site is about
-# things smaller than that. States are kept on each row (admin1_name) to tell same-named places apart.
+# A city, town, county or small state from GeoNames. Countries and big states are never places here: the
+# site is about things smaller than that. Each row keeps its state (admin1_name) to tell same-named places
+# apart.
 class Place < ApplicationRecord
-  KINDS = %w[ city county ].freeze
+  KINDS = %w[ city county state ].freeze
   NEARBY_KM = 120
 
   has_many :posts, dependent: :nullify
@@ -25,6 +26,8 @@ class Place < ApplicationRecord
   def to_param = slug
 
   def county? = kind == "county"
+  def state? = kind == "state"
+  def town? = kind == "city"
 
   # "Providence, Rhode Island, United States"
   def label
@@ -38,14 +41,24 @@ class Place < ApplicationRecord
 
   # The county a town is in, when GeoNames has one with towns big enough to make the list.
   def county
-    return nil if county? || admin2.blank?
+    return nil unless town? && admin2.present?
     Place.find_by(kind: "county", country_code:, admin1:, admin2:)
   end
 
-  # The posts shown for this place. A county's include those about its towns.
+  # The small state a town or county is in, when it is on the list.
+  def state
+    return nil if state? || admin1.blank?
+    Place.find_by(kind: "state", country_code:, admin1:)
+  end
+
+  # The posts shown for this place. A county's include those about its towns, and a state's those about
+  # its towns and counties.
   def shown_posts
-    return Post.shown.where(place: self) unless county?
-    Post.shown.where(place_id: Place.where(country_code:, admin1:, admin2:).select(:id))
+    case kind
+    when "county" then Post.shown.where(place_id: Place.where(country_code:, admin1:, admin2:).select(:id))
+    when "state" then Post.shown.where(place_id: Place.where(country_code:, admin1:).select(:id))
+    else Post.shown.where(place: self)
+    end
   end
 
   # Up to `limit` of `places` within NEARBY_KM, nearest first.

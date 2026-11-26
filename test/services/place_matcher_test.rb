@@ -42,16 +42,17 @@ class PlaceMatcherTest < ActiveSupport::TestCase
   ].freeze
 
   test "a name that is also a state counts only with a qualifier, unless the place is in that state" do
-    suburb = Place.create!(geonames_id: 9_000_001, name: "Rhode Island", ascii_name: "Rhode Island", kind: "city",
+    suburb = Place.create!(geonames_id: 9_000_001, name: "United Kingdom", ascii_name: "United Kingdom", kind: "city",
                            country_code: "AU", admin1: "07", admin1_name: "Victoria", country_name: "Australia",
-                           lat: -37.8, lng: 145.2, population: 250_000, slug: "rhode-island-victoria-au")
+                           lat: -37.8, lng: 145.2, population: 250_000, slug: "united-kingdom-victoria-au")
     capital = Place.create!(geonames_id: 9_000_002, name: "Victoria", ascii_name: "Victoria", kind: "city",
                             country_code: "AU", admin1: "07", admin1_name: "Victoria", country_name: "Australia",
                             lat: -37.8, lng: 145.0, population: 300_000, slug: "victoria-victoria-au")
     matcher = PlaceMatcher.new(common: Set.new, tech: Set.new)
 
-    assert_empty matcher.candidates(title: "Show HN: Rhode Island bus tracker")
-    assert_equal suburb.id, matcher.candidates(title: "Show HN: Bus tracker for Rhode Island, Victoria").first
+    assert_empty matcher.candidates(title: "Show HN: United Kingdom bus tracker")
+    assert_equal suburb.id, matcher.candidates(title: "Show HN: Bus tracker for United Kingdom, Victoria").first
+    assert_equal Place.find_by!(kind: "state", name: "Rhode Island").id, matcher.candidates(title: "Show HN: Rhode Island bus tracker").first
     assert_equal [ capital.id ], matcher.candidates(title: "Show HN: Victoria bus tracker")
   end
 

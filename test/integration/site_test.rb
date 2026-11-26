@@ -48,6 +48,17 @@ class SiteTest < ActionDispatch::IntegrationTest
     assert_equal 2, css_select(".post-title a").size
   end
 
+  test "a small state's page shows the posts about its towns, and towns link up to it" do
+    state = Place.find_by!(kind: "state", name: "Rhode Island")
+    get place_path(state)
+    assert_response :success
+    assert_select "h1", "Rhode Island"
+    assert_equal [ "East Providence zoning lookup", "Providence bus tracker" ], css_select(".post-title a").map(&:text)
+
+    get place_path(@ri)
+    assert_select "a[href=?]", place_path(state)
+  end
+
   test "the places index groups by country and state" do
     get places_path
     assert_response :success

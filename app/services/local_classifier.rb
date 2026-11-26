@@ -10,7 +10,7 @@ class LocalClassifier
   Verdict = Data.define(:local, :place_id, :confidence, :reason)
 
   SYSTEM = <<~PROMPT.freeze
-    You sort Show HN posts for a site that lists projects tied to one specific city, town, county or metro area.
+    You sort Show HN posts for a site that lists projects tied to one specific city, town, county, metro area or small state.
 
     The candidate places were found by matching words, so most of them are coincidences: an app named
     after a city, a maker who mentions where they live, a word that happens to be a town. Most posts you
@@ -27,7 +27,7 @@ class LocalClassifier
     - the place is only where the maker lives, works or got the idea ("I moved to Barcelona and built a
       language app", "a startup from Toronto");
     - the project works the same anywhere: job search, travel booking, finance, databases, dev tools;
-    - it covers a whole country, state or province, or the world;
+    - it covers a whole country, a big state or province that is not in the list, or the world;
     - the place it is about is not in the list: answer place 0.
 
     Examples:

@@ -5,7 +5,7 @@ Show HN projects tied to one city, town or county (transit trackers, zoning maps
 ## How it works
 
 1. **Scrape.** `ScrapeJob` runs hourly. It reads Show HN stories from the [Algolia HN API](https://hn.algolia.com/api), walking backwards in time because any one query stops at 1,000 hits. It also refreshes points and comment counts for the last week.
-2. **Match.** `PlaceMatcher` looks for town and county names from [GeoNames](https://www.geonames.org/) (towns of 5,000+ people, plus counties) in the title, text and URL.
+2. **Match.** `PlaceMatcher` looks for town and county names from [GeoNames](https://www.geonames.org/) (towns of 5,000+ people, counties, and small states like Vermont) in the title, text and URL.
    - **Strong names** count on their own: names of two or more words, and big cities whose names aren't English words.
    - **Weak names** need more evidence: a qualifier ("Reading, PA") or a local cue word (bus, zoning, residents…). Weak names are smaller places and ones that double as words or first names; the list is generated in `config/gazetteer/common_words.txt`.
    - **Tech names** like Phoenix or Ruby only count with a qualifier.
@@ -16,7 +16,7 @@ Show HN projects tied to one city, town or county (transit trackers, zoning maps
    - Posts at or above `LOCAL_THRESHOLD` confidence are shown.
 4. **Review.** `/admin` lists what the model decided. Corrections made there are permanent.
 
-Countries and states are never places: the site is about things smaller than that.
+Countries and big states are never places: the site is about things smaller than that. A small state (towns adding up to under 2 million people, `GazetteerLoader::SMALL_STATE`) is a place, and its page includes its towns' posts, as a county's does. A name shared with a state or country (Vermont, a Melbourne suburb) counts only with a qualifier.
 
 ## Run it locally
 

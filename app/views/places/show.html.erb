@@ -6,14 +6,19 @@
   <h1><%= @place.name %></h1>
   <p class="note">
     <%= @place.region %> |
-    <%= pluralize(@posts.size, "post") %> about <%= @place.county? ? "this county and its towns" : "this #{@place.population >= 100_000 ? 'city' : 'town'}" %>
+    <%= pluralize(@posts.size, "post") %> about
+    <%= if @place.state? then "this state and its towns"
+        elsif @place.county? then "this county and its towns"
+        else "this #{@place.population >= 100_000 ? 'city' : 'town'}"
+        end %>
     <% if @county %>| in <%= link_to @county.name, place_path(@county) %><% end %>
+    <% if @state %>| in <%= link_to @state.name, place_path(@state) %><% end %>
   </p>
 </section>
 
 <% if @posts.any? %>
   <ol class="posts">
-    <%= render partial: "posts/post", collection: @posts, locals: { show_place: @place.county? } %>
+    <%= render partial: "posts/post", collection: @posts, locals: { show_place: !@place.town? } %>
   </ol>
 <% else %>
   <p class="empty">Nothing here yet.</p>

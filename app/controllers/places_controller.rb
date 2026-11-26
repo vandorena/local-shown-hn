@@ -12,6 +12,7 @@ class PlacesController < ApplicationController
     @posts = @place.shown_posts.includes(:place).order(posted_at: :desc)
     @place.posts_count = @posts.size
     @county = @place.county
+    @state = @place.state
     @nearby = @place.nearby(Place.with_post_counts(Post.shown))
     @map_places = [ @place, *@nearby ]
   end
