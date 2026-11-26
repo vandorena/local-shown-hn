@@ -11,6 +11,7 @@ class PlacesController < ApplicationController
     @place = Place.find_by!(slug: params[:slug])
     @posts = @place.shown_posts.includes(:place).order(posted_at: :desc)
     @place.posts_count = @posts.size
+    @district = @place.district
     @county = @place.county
     @state = @place.state
     @nearby = @place.nearby(Place.with_post_counts(Post.shown))

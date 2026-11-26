@@ -97,7 +97,7 @@ class LocalClassifier
   def names?(text, place)
     words = " #{PlaceMatcher.normalize(text)} ".gsub(" new york times ", " ")
     names = [ place.name, place.ascii_name ].compact.map { PlaceMatcher.normalize(it) }
-    names += names.map { it.sub(/ (county|district|parish|borough|municipality|province|prefecture)\z/, "") } if place.county?
+    names += names.map { PlaceMatcher.normalize(Place.short_name(it)) } unless place.town?
     names += PlaceMatcher::ALIASES.filter_map { |short, long| short if names.include?(long) }
     names.uniq.reject(&:empty?).any? { words.include?(" #{it} ") }
   end

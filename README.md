@@ -5,10 +5,11 @@ Show HN projects tied to one city, town or county (transit trackers, zoning maps
 ## How it works
 
 1. **Scrape.** `ScrapeJob` runs hourly. It reads Show HN stories from the [Algolia HN API](https://hn.algolia.com/api), walking backwards in time because any one query stops at 1,000 hits. It also refreshes points and comment counts for the last week.
-2. **Match.** `PlaceMatcher` looks for town and county names from [GeoNames](https://www.geonames.org/) (towns of 5,000+ people, counties, and small states like Vermont) in the title, text and URL.
+2. **Match.** `PlaceMatcher` looks for town and county names from [GeoNames](https://www.geonames.org/) (towns of 5,000+ people, villages, districts like Cherwell, counties, and small states like Vermont) in the title, text and URL.
    - **Strong names** count on their own: names of two or more words, and big cities whose names aren't English words.
    - **Weak names** need more evidence: a qualifier ("Reading, PA") or a local cue word (bus, zoning, residents…). Weak names are smaller places and ones that double as words or first names; the list is generated in `config/gazetteer/common_words.txt`.
    - **Tech names** like Phoenix or Ruby only count with a qualifier.
+   - **Villages and districts** are strictest, since nearly every word is a village somewhere: a qualifier, or one word in the title or URL with a local cue, never an ordinary word. "Ordinary" includes words Show HN posts use a lot (demo, startup, FOSS), counted by `script/common_place_words.rb`.
 
    About 2.5% of posts come out as candidates.
 3. **Confirm.** `LocalClassifier` asks a free local model, running in [Ollama](https://ollama.com), whether each candidate is really about one of its places. It replies with JSON matching a fixed schema.
@@ -22,7 +23,8 @@ Countries and big states are never places: the site is about things smaller than
 
 ```sh
 bin/setup --skip-server
-bin/rails places:fetch places:load                     # GeoNames, ~20 MB, into storage/geonames
+bin/rails places:fetch places:load                     # GeoNames into storage/geonames: ~20 MB, plus a 420 MB
+                                                       # world dump cut down to villages and districts (GEONAMES_LOCALITIES=0 skips it)
 SINCE=2026-10-01 bin/rails hn:backfill hn:match       # one month of posts, matched
 brew install ollama && ollama serve &                  # a free local model
 ollama pull qwen3:4b
@@ -73,10 +75,11 @@ Set these variables:
 | `RAILS_MASTER_KEY` | runtime only (see the top of `Dockerfile`) |
 | `ADMIN_PASSWORD` | turns on `/admin` |
 | `OLLAMA_MODEL` | optional, default `qwen3:4b` |
+| `GEONAMES_LOCALITIES` | optional, default `1`; `0` skips villages and districts, saving a 420 MB monthly download and about 400 MB of RAM |
 | `LOCAL_THRESHOLD` | optional, default `0.6` |
 
 On first boot:
-- `web` downloads GeoNames; look for `places: loaded` in its log.
+- `web` downloads GeoNames, including the 420 MB world dump, which it cuts down to villages and districts in about a minute and then deletes; look for `places: loaded` in its log (about 580k places).
 - `ollama` pulls the model, which is several GB. The site is up while that happens, and posts wait as candidates until the model is ready.
 
 ## Checks

@@ -7,6 +7,9 @@
 # Small states and provinces (admin1CodesASCII.txt) are places too, placed the same way: ones whose towns
 # add up to fewer than SMALL_STATE people, like Vermont or Rhode Island. Big ones (California, Ontario) are
 # too broad to be local. A region named after its own city (Vilnius County) is left to the city.
+#
+# localities.txt, when there, adds districts (ADM3, like Cherwell District) and villages under 5,000
+# people. Counties and states are still placed and sized by the towns of cities5000.txt alone.
 class GazetteerLoader
   SKIPPED_FEATURES = %w[ PPLH PPLQ PPLW PPLCH ].freeze
   SMALL_STATE = 2_000_000
@@ -24,11 +27,17 @@ class GazetteerLoader
     cities = read_cities(admin1)
     counties = read_counties(admin1, cities)
     states = read_states(cities)
-    rows = with_unique_slugs(cities + counties + states).each { it[:country_name] = countries[it[:country_code]] }
+    localities = read_localities(admin1, cities)
+    rows = with_unique_slugs(cities + counties + states + localities).each { it[:country_name] = countries[it[:country_code]] }
     now = Time.current
-    rows.each_slice(BATCH) do |batch|
-      Place.upsert_all(batch.map { it.merge(created_at: now, updated_at: now) }, unique_by: :geonames_id,
-                       update_only: %i[ name ascii_name kind country_code country_name admin1 admin1_name admin2 lat lng population slug ])
+    Place.transaction do
+      # Slugs can move between places when new ones arrive (a bigger namesake takes the plain one), and
+      # the batches below can't swap them in order, so park the old ones first.
+      Place.update_all("slug = 'old-' || id")
+      rows.each_slice(BATCH) do |batch|
+        Place.upsert_all(batch.map { it.merge(created_at: now, updated_at: now) }, unique_by: :geonames_id,
+                         update_only: %i[ name ascii_name kind country_code country_name admin1 admin1_name admin2 admin3 lat lng population slug ])
+      end
     end
     rows.size
   end
@@ -57,7 +66,7 @@ class GazetteerLoader
       next if members.any? { PlaceMatcher.normalize(it[:ascii_name]) == PlaceMatcher.normalize(ascii.presence || name) }
 
       rows << { geonames_id: geonames_id.to_i, name:, ascii_name: ascii.presence || name, kind: "state",
-                country_code: country, admin1: a1, admin1_name: ascii.presence || name, admin2: nil,
+                country_code: country, admin1: a1, admin1_name: ascii.presence || name, admin2: nil, admin3: nil,
                 **centre(members) }
     end
     rows
@@ -82,15 +91,32 @@ class GazetteerLoader
   def read_cities(admin1)
     rows = []
     each_row(GazetteerDownload::CITIES) do |f|
-      next if SKIPPED_FEATURES.include?(f[7])
-      country, a1, a2 = f[8], f[10], f[11]
-      rows << {
-        geonames_id: f[0].to_i, name: f[1], ascii_name: f[2].presence || f[1], kind: "city",
-        country_code: country, admin1: a1.presence, admin1_name: admin1["#{country}.#{a1}"],
-        admin2: a2.presence, lat: f[4].to_f, lng: f[5].to_f, population: f[14].to_i
-      }
+      rows << place_row(f, admin1, "city") unless SKIPPED_FEATURES.include?(f[7])
     end
     rows
+  end
+
+  # Districts and villages, leaving out any already in cities5000.txt.
+  def read_localities(admin1, cities)
+    return [] unless File.exist?(file(GazetteerDownload::LOCALITIES))
+
+    known = cities.to_set { it[:geonames_id] }
+    rows = []
+    each_row(GazetteerDownload::LOCALITIES) do |f|
+      next if known.include?(f[0].to_i)
+      rows << place_row(f, admin1, f[6] == "A" ? "district" : "city")
+    end
+    rows
+  end
+
+  # A row of cities5000.txt or localities.txt (the GeoNames dump format).
+  def place_row(f, admin1, kind)
+    country, a1 = f[8], f[10]
+    {
+      geonames_id: f[0].to_i, name: f[1], ascii_name: f[2].presence || f[1], kind:,
+      country_code: country, admin1: a1.presence, admin1_name: admin1["#{country}.#{a1}"],
+      admin2: f[11].presence, admin3: f[12].presence, lat: f[4].to_f, lng: f[5].to_f, population: f[14].to_i
+    }
   end
 
   def read_counties(admin1, cities)
@@ -103,7 +129,7 @@ class GazetteerLoader
 
       rows << {
         geonames_id: geonames_id.to_i, name:, ascii_name: ascii.presence || name, kind: "county",
-        country_code: country, admin1: a1, admin1_name: admin1["#{country}.#{a1}"], admin2: a2,
+        country_code: country, admin1: a1, admin1_name: admin1["#{country}.#{a1}"], admin2: a2, admin3: nil,
         **centre(members)
       }
     end

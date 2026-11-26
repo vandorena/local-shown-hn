@@ -15,6 +15,9 @@
 #   - So do names that are also a state, province or country (Vermont, Georgia, Victoria): "Vermont" means
 #     the state, not the Melbourne suburb. A place in a region of its own name still counts (Singapore,
 #     Tokyo), and so does a city of BIG_CITY people (San Jose, though Costa Rica has a province of that name).
+#   - Minor places, villages under 5,000 people and districts, are strictest: nearly every word is a village
+#     somewhere ("Research", Victoria; "Index", Washington). They count with a qualifier, or else only as
+#     one word in the title or URL, with a local cue, and not an ordinary word.
 class PlaceMatcher
   MAX_WORDS = 4
   MAX_CANDIDATES = 5
@@ -38,6 +41,9 @@ class PlaceMatcher
   }.freeze
 
   Token = Data.define(:norm, :capitalized, :upcase, :initial)
+  # Where a place is: its state and country names (regions), what may follow its name to pin it down
+  # (qualifiers: "rhode island", "usa"), and 2-letter codes that count only in capitals (codes: "ri", "us").
+  Area = Data.define(:regions, :qualifiers, :codes)
   Hit = Data.define(:place_id, :score)
 
   class << self
@@ -75,31 +81,30 @@ class PlaceMatcher
 
   def build_index(places)
     @names = Hash.new { |h, k| h[k] = [] } # normalized name => [place rows]
-    @qualifiers = Hash.new { |h, k| h[k] = Set.new } # place id => normalized qualifier phrases
-    @upper_qualifiers = Hash.new { |h, k| h[k] = Set.new } # place id => 2-letter codes that count only in capitals
+    # place id => its Area. Places in the same state share one, which keeps 500k+ places small in memory.
+    @areas = {}
+    shared = Hash.new { |h, (a1, a1_name, cc, c_name)| h[[ a1, a1_name, cc, c_name ]] = area(a1, a1_name, cc, c_name) }
     @population = {}
     @regions = Set.new # normalized state, province and country names
-    @own_regions = Hash.new { |h, k| h[k] = Set.new } # place id => its own state and country names
-    @biggest = Hash.new(0) # normalized name => population of the biggest place with that name
+    @biggest = Hash.new(0) # normalized name => population of the biggest town (not minor place) with that name
+    @biggest_minor = Hash.new(0) # the same, for minor places
+    @minor = Set.new # ids of villages and districts
     @squashed = {} # "newyorkcity" => "new york city", for names run together in a hostname
-    places.pluck(:id, :name, :ascii_name, :population, :admin1, :admin1_name, :country_code, :country_name).each do |id, name, ascii, pop, a1, a1_name, cc, c_name|
+    columns = %i[ id name ascii_name population admin1 admin1_name country_code country_name kind ]
+    each_place_row(places, columns) do |id, name, ascii, pop, a1, a1_name, cc, c_name, kind|
       @population[id] = pop
-      [ name, ascii ].map { self.class.normalize(it) }.uniq.each do |key|
+      minor = kind == "district" || (kind == "city" && pop < GazetteerDownload::VILLAGE_MAX)
+      @minor << id if minor
+      names = [ name, ascii ]
+      names += names.map { Place.short_name(it) } if kind == "district" # "Cherwell District" is "Cherwell" in a post
+      names.map { self.class.normalize(it) }.uniq.each do |key|
         next if key.length < 3 || key.count(" ") >= MAX_WORDS || LOCAL_CUES.include?(key)
         @names[key] << id
-        @biggest[key] = [ @biggest[key], pop ].max
+        biggest = minor ? @biggest_minor : @biggest
+        biggest[key] = [ biggest[key], pop ].max
       end
-      [ a1_name, c_name ].compact.each do |region|
-        key = self.class.normalize(region)
-        @qualifiers[id] << key
-        @own_regions[id] << key
-        @regions << key
-      end
-      @upper_qualifiers[id] << a1.downcase if a1.to_s.match?(/\A[A-Z]{2}\z/)
-      @upper_qualifiers[id] << cc.downcase
-      @qualifiers[id] << "usa" if cc == "US"
-      @upper_qualifiers[id] << "us" if cc == "US"
-      @upper_qualifiers[id] << "uk" if cc == "GB"
+      @areas[id] = shared[[ a1, a1_name, cc, c_name ]]
+      @regions.merge(@areas[id].regions)
     end
     ALIASES.each do |short, long|
       next unless @names.key?(long)
@@ -108,10 +113,24 @@ class PlaceMatcher
     end
     @names.each_key do |key|
       squashed = key.delete(" ")
-      next if squashed.length < HOST_MIN || !strong?(key, key.count(" ") + 1) || @tech.include?(key) || @regions.include?(key)
-      @squashed[squashed] = key if @biggest[key] > @biggest[@squashed[squashed]].to_i
+      next if squashed.length < HOST_MIN || !host_name?(key) || @tech.include?(key) || @regions.include?(key)
+      size = [ @biggest[key], @biggest_minor[key] ].max
+      @squashed[squashed] = key if size > [ @biggest[@squashed[squashed]], @biggest_minor[@squashed[squashed]] ].max
     end
     @squashed["nyc"] = "nyc"
+  end
+
+  # Reads the places a batch at a time: plucking 500k+ rows in one go holds them all in memory at once.
+  def each_place_row(places, columns, &)
+    places.in_batches(of: 20_000) { |batch| batch.pluck(*columns).each(&) }
+  end
+
+  def area(a1, a1_name, cc, c_name)
+    regions = [ a1_name, c_name ].compact.map { self.class.normalize(it) }.to_set
+    qualifiers = regions.dup
+    qualifiers << "usa" if cc == "US"
+    codes = [ cc.downcase, (a1.downcase if a1.to_s.match?(/\A[A-Z]{2}\z/)), ("us" if cc == "US"), ("uk" if cc == "GB") ].compact.to_set
+    Area.new(regions: regions.freeze, qualifiers: qualifiers.freeze, codes: codes.freeze)
   end
 
   # Longest match first, left to right: "New York City" is one match, not also "New York" and "York".
@@ -139,18 +158,34 @@ class PlaceMatcher
 
   def score(ids, key, n, rest, source, cue, initial:)
     qualified = ids.select { qualified?(it, rest) }
-    ids = ids.select { @own_regions[it].include?(key) || @population[it] >= BIG_CITY } if @regions.include?(key) && !ALIASES.key?(key)
+    ids = ids.select { @areas[it].regions.include?(key) || @population[it] >= BIG_CITY } if @regions.include?(key) && !ALIASES.key?(key)
+    minor, towns = ids.partition { @minor.include?(it) }
     allowed =
       if qualified.any? then qualified
-      elsif ids.empty? || qualifier_only?(key, n) then []
-      elsif strong?(key, n) then ids
-      elsif cue && !(source == :text && initial) then ids
-      else []
+      else allowed_towns(towns, key, n, source, cue, initial) + allowed_minor(minor, key, n, source, cue)
       end
     allowed.map do |id|
       bonus = SOURCE_BONUS[source] + (qualified.include?(id) ? 4 : 0) + (cue ? 1 : 0) + n
       Hit.new(place_id: id, score: Math.log10(@population[id] + 10) + bonus)
     end
+  end
+
+  def allowed_towns(ids, key, n, source, cue, initial)
+    if ids.empty? || qualifier_only?(key, n) then []
+    elsif strong?(key, n) then ids
+    elsif cue && !(source == :text && initial) then ids
+    else []
+    end
+  end
+
+  def allowed_minor(ids, key, n, source, cue)
+    return [] if ids.empty? || n > 1 || !cue || source == :text || qualifier_only?(key, n) || @common.include?(key)
+    ids
+  end
+
+  # Names looked for inside hostname words: big towns, and big districts (Cherwell), never ordinary words.
+  def host_name?(key)
+    strong?(key, key.count(" ") + 1) || (!key.include?(" ") && @biggest_minor[key] >= STRONG_POPULATION && !@common.include?(key))
   end
 
   def strong?(key, n) = n > 1 || ALIASES.key?(key) || (@biggest[key] >= STRONG_POPULATION && !@common.include?(key))
@@ -160,7 +195,8 @@ class PlaceMatcher
   def qualified?(id, rest)
     return false if rest.empty?
     phrases = (1..rest.size).map { |k| rest.first(k).map(&:norm).join(" ") }
-    phrases.any? { @qualifiers[id].include?(it) } || (rest.first.upcase && @upper_qualifiers[id].include?(rest.first.norm))
+    area = @areas[id]
+    phrases.any? { area.qualifiers.include?(it) } || (rest.first.upcase && area.codes.include?(rest.first.norm))
   end
 
   # Words, each marked with whether it starts a sentence (or the text), where capitals prove nothing.

@@ -38,6 +38,15 @@ class GazetteerLoaderTest < ActiveSupport::TestCase
     assert_nil Place.find_by(name: "England") # its towns add up to 318,014
   end
 
+  test "adds districts and villages from localities.txt, each linked to the other" do
+    district = Place.find_by!(name: "Cherwell District")
+    village = Place.find_by!(name: "Bloxham")
+    assert_equal [ "district", "38UB" ], [ district.kind, district.admin3 ]
+    assert_equal [ "city", 3374 ], [ village.kind, village.population ]
+    assert_equal district, village.district
+    assert_equal 1, Place.where(geonames_id: 2639577).count # Reading is in both files; loaded once
+  end
+
   test "loading twice updates in place" do
     assert_no_difference("Place.count") { GazetteerLoader.new(dir: DIR).load! }
     assert_equal @count, Place.count

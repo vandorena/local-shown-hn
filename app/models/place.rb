@@ -1,8 +1,11 @@
-# A city, town, county or small state from GeoNames. Countries and big states are never places here: the
+# A city, town, village, district, county or small state from GeoNames. Countries and big states are never places here: the
 # site is about things smaller than that. Each row keeps its state (admin1_name) to tell same-named places
 # apart.
 class Place < ApplicationRecord
-  KINDS = %w[ city county state ].freeze
+  KINDS = %w[ city district county state ].freeze
+  # Words that wrap a district or county's own name: "Cherwell District", "Borough of Wokingham".
+  AREA_WORDS = /\A(?:(?:london |metropolitan |royal )?borough|district|city|county|municipality) of |
+                \s(?:district|borough|township|municipality|county|parish|province|prefecture)\z/ix
   NEARBY_KM = 120
 
   has_many :posts, dependent: :nullify
@@ -25,7 +28,11 @@ class Place < ApplicationRecord
 
   def to_param = slug
 
+  # "Cherwell District" -> "Cherwell"; a name without such words stays as it is.
+  def self.short_name(name) = name.to_s.gsub(AREA_WORDS, "").strip.presence || name
+
   def county? = kind == "county"
+  def district? = kind == "district"
   def state? = kind == "state"
   def town? = kind == "city"
 
@@ -41,8 +48,14 @@ class Place < ApplicationRecord
 
   # The county a town is in, when GeoNames has one with towns big enough to make the list.
   def county
-    return nil unless town? && admin2.present?
+    return nil unless (town? || district?) && admin2.present?
     Place.find_by(kind: "county", country_code:, admin1:, admin2:)
+  end
+
+  # The district a town or village is in, when GeoNames has one.
+  def district
+    return nil unless town? && admin3.present?
+    Place.find_by(kind: "district", country_code:, admin1:, admin2:, admin3:)
   end
 
   # The small state a town or county is in, when it is on the list.
@@ -51,10 +64,11 @@ class Place < ApplicationRecord
     Place.find_by(kind: "state", country_code:, admin1:)
   end
 
-  # The posts shown for this place. A county's include those about its towns, and a state's those about
-  # its towns and counties.
+  # The posts shown for this place. A district's include those about its villages, a county's those about
+  # its towns, and a state's those about everything in it.
   def shown_posts
     case kind
+    when "district" then Post.shown.where(place_id: Place.where(country_code:, admin1:, admin2:, admin3:).select(:id))
     when "county" then Post.shown.where(place_id: Place.where(country_code:, admin1:, admin2:).select(:id))
     when "state" then Post.shown.where(place_id: Place.where(country_code:, admin1:).select(:id))
     else Post.shown.where(place: self)

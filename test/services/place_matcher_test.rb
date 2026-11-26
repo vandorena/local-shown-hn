@@ -56,6 +56,13 @@ class PlaceMatcherTest < ActiveSupport::TestCase
     assert_equal [ capital.id ], matcher.candidates(title: "Show HN: Victoria bus tracker")
   end
 
+  test "a district matches by its short name, inside a hostname too" do
+    district = Place.find_by!(name: "Cherwell District")
+    matcher = PlaceMatcher.new(common: Set.new, tech: Set.new)
+    assert_equal district.id, matcher.candidates(title: "Show HN: Cherwell council planning tracker").first
+    assert_equal district.id, matcher.candidates(title: "Show HN: Drive around my village in 3D", url: "https://cherwellvalleymotorclub.app").first
+  end
+
   CASES.each do |title, text, url, expected|
     test "#{title} #{text} #{url} => #{expected || 'nothing'}" do
       if expected

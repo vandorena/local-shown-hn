@@ -9,8 +9,10 @@
     <%= pluralize(@posts.size, "post") %> about
     <%= if @place.state? then "this state and its towns"
         elsif @place.county? then "this county and its towns"
+        elsif @place.district? then "this district and its villages"
         else "this #{@place.population >= 100_000 ? 'city' : 'town'}"
         end %>
+    <% if @district %>| in <%= link_to @district.name, place_path(@district) %><% end %>
     <% if @county %>| in <%= link_to @county.name, place_path(@county) %><% end %>
     <% if @state %>| in <%= link_to @state.name, place_path(@state) %><% end %>
   </p>

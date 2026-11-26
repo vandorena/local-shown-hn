@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_25_045856) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_26_214618) do
   create_table "places", force: :cascade do |t|
     t.integer "geonames_id", null: false
     t.string "name", null: false
@@ -27,7 +27,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_25_045856) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "country_name"
+    t.string "admin3"
     t.index ["ascii_name"], name: "index_places_on_ascii_name"
+    t.index ["country_code", "admin1", "admin2", "admin3"], name: "index_places_on_country_code_and_admin1_and_admin2_and_admin3"
     t.index ["geonames_id"], name: "index_places_on_geonames_id", unique: true
     t.index ["slug"], name: "index_places_on_slug", unique: true
   end
