@@ -12,6 +12,9 @@
 #     config/gazetteer/common_words.txt (Reading, Mobile, Providence).
 #   - Tech words (config/gazetteer/tech_words.txt: Phoenix, Ruby, Haiku) and names of three letters or
 #     fewer count only with a qualifier.
+#   - So do names that are also a state, province or country (Vermont, Georgia, Victoria): "Vermont" means
+#     the state, not the Melbourne suburb. A place in a region of its own name still counts (Singapore,
+#     Tokyo), and so does a city of BIG_CITY people (San Jose, though Costa Rica has a province of that name).
 class PlaceMatcher
   MAX_WORDS = 4
   MAX_CANDIDATES = 5
@@ -19,6 +22,7 @@ class PlaceMatcher
   # Only big, unambiguous places are looked for inside hostname words (see strong?): smaller names turn up
   # inside ordinary words and people's names far too often (salemove, austinkpickett).
   STRONG_POPULATION = 100_000
+  BIG_CITY = 500_000 # big enough that its name means the city, even where a region shares it (San Jose, Sofia)
   SOURCE_BONUS = { title: 3.0, url: 1.5, text: 0.0 }.freeze
   # Words that suggest a post is about a place. Kept to ones HN rarely uses otherwise: no "local"
   # (local-first), "library", "property", "train" or "events".
@@ -74,6 +78,8 @@ class PlaceMatcher
     @qualifiers = Hash.new { |h, k| h[k] = Set.new } # place id => normalized qualifier phrases
     @upper_qualifiers = Hash.new { |h, k| h[k] = Set.new } # place id => 2-letter codes that count only in capitals
     @population = {}
+    @regions = Set.new # normalized state, province and country names
+    @own_regions = Hash.new { |h, k| h[k] = Set.new } # place id => its own state and country names
     @biggest = Hash.new(0) # normalized name => population of the biggest place with that name
     @squashed = {} # "newyorkcity" => "new york city", for names run together in a hostname
     places.pluck(:id, :name, :ascii_name, :population, :admin1, :admin1_name, :country_code, :country_name).each do |id, name, ascii, pop, a1, a1_name, cc, c_name|
@@ -83,7 +89,12 @@ class PlaceMatcher
         @names[key] << id
         @biggest[key] = [ @biggest[key], pop ].max
       end
-      [ a1_name, c_name ].compact.each { @qualifiers[id] << self.class.normalize(it) }
+      [ a1_name, c_name ].compact.each do |region|
+        key = self.class.normalize(region)
+        @qualifiers[id] << key
+        @own_regions[id] << key
+        @regions << key
+      end
       @upper_qualifiers[id] << a1.downcase if a1.to_s.match?(/\A[A-Z]{2}\z/)
       @upper_qualifiers[id] << cc.downcase
       @qualifiers[id] << "usa" if cc == "US"
@@ -97,7 +108,7 @@ class PlaceMatcher
     end
     @names.each_key do |key|
       squashed = key.delete(" ")
-      next if squashed.length < HOST_MIN || !strong?(key, key.count(" ") + 1) || @tech.include?(key)
+      next if squashed.length < HOST_MIN || !strong?(key, key.count(" ") + 1) || @tech.include?(key) || @regions.include?(key)
       @squashed[squashed] = key if @biggest[key] > @biggest[@squashed[squashed]].to_i
     end
     @squashed["nyc"] = "nyc"
@@ -128,9 +139,10 @@ class PlaceMatcher
 
   def score(ids, key, n, rest, source, cue, initial:)
     qualified = ids.select { qualified?(it, rest) }
+    ids = ids.select { @own_regions[it].include?(key) || @population[it] >= BIG_CITY } if @regions.include?(key) && !ALIASES.key?(key)
     allowed =
       if qualified.any? then qualified
-      elsif qualifier_only?(key, n) then []
+      elsif ids.empty? || qualifier_only?(key, n) then []
       elsif strong?(key, n) then ids
       elsif cue && !(source == :text && initial) then ids
       else []
