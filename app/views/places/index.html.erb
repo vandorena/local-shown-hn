@@ -1,4 +1,4 @@
-<% content_for :title, "Places | Local Show HN" %>
+<% content_for :title, "Places | Nearby Hacker News" %>
 
 <p class="note"><%= pluralize(@total, "local post") %> across <%= pluralize(@countries.sum { it.last.size }, "place") %> in <%= pluralize(@countries.size, "country") %>.</p>
 

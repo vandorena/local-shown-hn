@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title><%= content_for(:title) || "Local Show HN" %></title>
+    <title><%= content_for(:title) || "Nearby Hacker News" %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="Local Show HN">
+    <meta name="application-name" content="Nearby Hacker News">
     <meta name="mobile-web-app-capable" content="yes">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 
     <meta name="description" content="Show HN projects tied to a specific city, town or county, on a map, listed like the HN front page.">
-    <%= auto_discovery_link_tag :atom, feed_url, title: "Local Show HN" %>
+    <%= auto_discovery_link_tag :atom, feed_url, title: "Nearby Hacker News" %>
     <%= yield :head %>
 
     <%# Enable PWA manifest for installable apps (make sure to enable in config/routes.rb too!) %>
@@ -26,9 +26,9 @@
   <body>
     <div class="page">
       <header class="site-header">
-        <%= link_to root_path, class: "logo", "aria-label": "Local Show HN" do %>L<% end %>
+        <%= link_to root_path, class: "logo", "aria-label": "Nearby Hacker News" do %>N<% end %>
         <nav>
-          <%= link_to "Local Show HN", root_path, class: "brand" %>
+          <%= link_to "Nearby Hacker News", root_path, class: "brand" %>
           <%= link_to "new", root_path, class: ("current" if controller_name == "posts" && params[:sort] != "top") %> |
           <%= link_to "top", root_path(sort: "top"), class: ("current" if params[:sort] == "top") %> |
           <%= link_to "places", places_path, class: ("current" if controller_name == "places") %> |

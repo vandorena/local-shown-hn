@@ -1,5 +1,5 @@
 atom_feed(language: "en") do |feed|
-  feed.title "Local Show HN"
+  feed.title "Nearby Hacker News"
   feed.subtitle "Show HN projects tied to a city, town or county"
   feed.updated @posts.first&.posted_at || Time.current
 
