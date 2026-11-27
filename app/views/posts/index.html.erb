@@ -1,5 +1,6 @@
 <% content_for :title, @query.present? ? "#{@query} | Nearby Hacker News" : "Nearby Hacker News" %>
 
+<div class="map-wrap">
 <%= render "shared/map", places: @map_places %>
 
 <% if @total > PostsController::MAP_LIMIT %>
@@ -14,6 +15,7 @@
     <noscript><button>update</button></noscript>
   <% end %>
 <% end %>
+</div>
 
 <% if @query.present? %>
   <p class="note"><%= pluralize(@total, "local post") %> matching “<%= @query %>” | <%= link_to "clear", root_path(sort: (@sort if @sort == "top")) %></p>
