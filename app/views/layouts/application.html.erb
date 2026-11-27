@@ -16,7 +16,7 @@
     <%# Enable PWA manifest for installable apps (make sure to enable in config/routes.rb too!) %>
     <%#= tag.link rel: "manifest", href: pwa_manifest_path(format: :json) %>
 
-    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="icon" href="/icon.svg?v=2" type="image/svg+xml">
 
     <%# Includes all stylesheet files in app/assets/stylesheets %>
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
@@ -26,7 +26,7 @@
   <body>
     <div class="page">
       <header class="site-header">
-        <%= link_to image_tag("/icon.svg", alt: "Nearby Hacker News", width: 18, height: 18), root_path, class: "logo" %>
+        <%= link_to image_tag("/icon.svg?v=2", alt: "Nearby Hacker News", width: 18, height: 18), root_path, class: "logo" %>
         <nav>
           <%= link_to "Nearby Hacker News", root_path, class: "brand" %>
           <%= link_to "new", root_path, class: ("current" if controller_name == "posts" && params[:sort] != "top") %> |
