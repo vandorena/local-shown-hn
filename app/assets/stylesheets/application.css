@@ -106,6 +106,12 @@ main { padding: 6px 0 10px; }
 .choices { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; }
 .choices a { color: var(--ink); font-size: 10pt; }
 .region .posts { margin: 4px 0 8px; padding-left: 2.5em; }
+.region-index { margin: 2px 0 10px; color: var(--dim); line-height: 1.7; }
+.region-index a { color: var(--ink); }
+.region { scroll-margin-top: 6px; }
+.region h3 { display: inline-block; margin-right: 8px; }
+.to-top { font-size: 7pt; color: var(--dim); }
+.region-index a:hover, .to-top:hover { text-decoration: underline; }
 
 /* Footer: HN's orange rule, links and search box. */
 .site-footer {

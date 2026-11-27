@@ -45,9 +45,17 @@
         <h2><%= country %> <span class="count">(<%= count.(places) %>)</span></h2>
         <% regions = places.group_by { (it.admin1_name.presence unless it.admin1_name == country) }
                            .sort_by { |region, ps| [ region ? 0 : 1, -count.(ps), region.to_s ] } %>
+        <% country_path = "#{picker_key(continent)}/#{picker_key(places.first.country_code)}" %>
+        <% region_name = ->(region) { region || (regions.size > 1 ? "Elsewhere in #{country}" : country) } %>
+        <% if regions.size > 1 %>
+          <p class="region-index">
+            <%= safe_join(regions.map { |region, in_region| safe_join([ link_to(region_name.(region), "##{country_path}/#{picker_key(region_name.(region))}"), " ", tag.span("(#{count.(in_region)})", class: "count") ]) }, " | ") %>
+          </p>
+        <% end %>
         <% regions.each do |region, in_region| %>
-          <div class="region">
-            <h3><%= region || (regions.size > 1 ? "Elsewhere in #{country}" : country) %></h3>
+          <div class="region" id="<%= country_path %>/<%= picker_key(region_name.(region)) %>" data-region-key="<%= picker_key(region_name.(region)) %>">
+            <h3><%= region_name.(region) %></h3>
+            <% if regions.size > 1 %><a class="to-top" href="#<%= country_path %>">back to <%= places.first.country_code == "US" ? "states" : "the list" %></a><% end %>
             <p class="place-list">
               <%= safe_join(in_region.sort_by { [ -it.posts_count, it.name ] }.map { |place| safe_join([ link_to(place.name, place_path(place)), " ", tag.span("(#{place.posts_count})", class: "count") ]) }, " | ") %>
             </p>

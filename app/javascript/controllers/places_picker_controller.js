@@ -17,7 +17,7 @@ export default class extends Controller {
   }
 
   show() {
-    const [ continentKey = "", countryKey = "" ] = decodeURIComponent(location.hash.slice(1)).split("/")
+    const [ continentKey = "", countryKey = "", regionKey = "" ] = decodeURIComponent(location.hash.slice(1)).split("/")
     const countryPath = `${continentKey}/${countryKey}`
     const continents = this.countriesTargets.find(el => el.dataset.key === continentKey)
     const country = countryKey && this.countryTargets.find(el => el.dataset.key === countryPath)
@@ -28,7 +28,15 @@ export default class extends Controller {
 
     this.crumbsTarget.hidden = !continents
     this.crumbContinentTarget.replaceChildren(...(continents ? this.crumb(`#${continentKey}`, this.nameFor(this.continentsTarget, `#${continentKey}`), !country) : []))
-    this.crumbCountryTarget.replaceChildren(...(country ? this.crumb(`#${countryPath}`, this.nameFor(continents, `#${countryPath}`), true) : []))
+    this.crumbCountryTarget.replaceChildren(...(country ? this.crumb(`#${countryPath}`, this.nameFor(continents, `#${countryPath}`), !regionKey) : []))
+
+    // A subdivision in the hash jumps to its section; the bare country goes back to the top of the list.
+    const region = country && regionKey && [ ...country.querySelectorAll("[data-region-key]") ].find(el => el.dataset.regionKey === regionKey)
+    // Wait a frame so this lands after Turbo's and the browser's own scroll for the hash.
+    requestAnimationFrame(() => {
+      if (region) region.scrollIntoView()
+      else if (country) this.element.scrollIntoView()
+    })
   }
 
   // " › Europe", linked unless it is the step being shown.
