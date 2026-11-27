@@ -4,7 +4,7 @@
 import { Controller } from "@hotwired/stimulus"
 import * as L from "leaflet"
 
-const CELL = 44 // px: places closer than about this on screen share a square
+const CELL = 26 // px: places closer than about this on screen (roughly where squares overlap) share one
 
 export default class extends Controller {
   static values = { points: Array, focus: Array }
