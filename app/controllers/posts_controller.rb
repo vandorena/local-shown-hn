@@ -10,7 +10,7 @@ class PostsController < ApplicationController
     @total = scope.count
     @map_places = Place.with_post_counts(scope)
     @page = [ params[:page].to_i, 1 ].max
-    @posts = scope.order(@sort == "top" ? { points: :desc } : { posted_at: :desc })
+    @posts = (@sort == "top" ? scope.ranked : scope.order(posted_at: :desc))
                   .offset((@page - 1) * PER_PAGE).limit(PER_PAGE)
   end
 
