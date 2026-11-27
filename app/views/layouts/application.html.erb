@@ -32,7 +32,6 @@
           <%= link_to "new", root_path, class: ("current" if controller_name == "posts" && params[:sort] != "top") %> |
           <%= link_to "top", root_path(sort: "top"), class: ("current" if params[:sort] == "top") %> |
           <%= link_to "places", places_path, class: ("current" if controller_name == "places") %> |
-          <%= link_to "feed", feed_path, title: "Atom feed of new local posts" %> |
           <%= link_to "submit", "https://news.ycombinator.com/submitlink?#{{ t: "Show HN: " }.to_query}", title: "Post your local project as a Show HN" %>
         </nav>
       </header>
