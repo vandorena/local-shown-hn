@@ -7,7 +7,6 @@
   <% keep = { sort: (@sort if @sort == "top"), q: @query.presence } %>
   <% options = [ [ "#{@sort == "top" ? "top" : "newest"} #{PostsController::MAP_LIMIT}", false ], [ "all", true ] ] %>
   <p class="map-scope">
-    map:
     <%= safe_join(options.map { |label, all| all == @map_all ? tag.b(label) : link_to(label, root_path(**keep, all: ("1" if all))) }, " | ") %>
   </p>
 <% end %>
