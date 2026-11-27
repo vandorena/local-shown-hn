@@ -4,15 +4,12 @@
 <%= render "shared/map", places: @map_places %>
 
 <% if @total > PostsController::MAP_LIMIT %>
-  <%= form_with url: root_path, method: :get, class: "map-scope", data: { controller: "submit-on-change" } do |f| %>
-    <%= hidden_field_tag :sort, @sort if @sort == "top" %>
-    <%= hidden_field_tag :q, @query if @query.present? %>
-    <label>
-      <%= check_box_tag :all, "1", @map_all, data: { action: "submit-on-change#submit" } %>
-      show all projects on the map
-    </label>
-    <noscript><button>update</button></noscript>
-  <% end %>
+  <% keep = { sort: (@sort if @sort == "top"), q: @query.presence } %>
+  <% options = [ [ "#{@sort == "top" ? "top" : "newest"} #{PostsController::MAP_LIMIT}", false ], [ "all", true ] ] %>
+  <p class="map-scope">
+    map:
+    <%= safe_join(options.map { |label, all| all == @map_all ? tag.b(label) : link_to(label, root_path(**keep, all: ("1" if all))) }, " | ") %>
+  </p>
 <% end %>
 </div>
 

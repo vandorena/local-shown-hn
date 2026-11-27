@@ -76,8 +76,8 @@ main { padding: 6px 0 10px; }
   font-size: 8pt;
   color: var(--dim);
 }
-.map-scope label { cursor: pointer; }
-.map-scope input { margin: 0 2px 0 0; vertical-align: -2px; }
+.map-scope a, .map-scope b { color: var(--ink); }
+.map-scope a:hover { text-decoration: underline; }
 /* Muted grey tiles so only the orange squares stand out. */
 .osm-tiles { filter: grayscale(1) contrast(0.85) brightness(1.08); }
 /* A place's post count in a square like the logo; merged squares get a heavier border. */
