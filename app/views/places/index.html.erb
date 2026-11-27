@@ -1,19 +1,64 @@
 <% content_for :title, "Places | Nearby Hacker News" %>
+<%
+  # Continent -> [country, places], biggest first. Posts are loaded once and split up by country and subdivision.
+  continents = @countries.group_by { |_, places| continent_for(places.first.country_code) }
+                         .sort_by { |name, cs| [ -cs.sum { |_, ps| ps.sum(&:posts_count) }, name ] }
+  posts_by_place = Post.shown.where(place_id: @countries.flat_map { it.last.map(&:id) })
+                       .includes(:place).order(posted_at: :desc).group_by(&:place_id)
+  count = ->(places) { places.sum(&:posts_count) }
+%>
 
-<p class="note"><%= pluralize(@total, "local post") %> across <%= pluralize(@countries.sum { it.last.size }, "place") %> in <%= pluralize(@countries.size, "country") %>.</p>
+<div class="picker" data-controller="places-picker">
+  <p class="note">
+    <%= pluralize(@total, "local post") %> across <%= pluralize(@countries.sum { it.last.size }, "place") %> in <%= pluralize(@countries.size, "country") %>.
+  </p>
 
-<% @countries.each do |country, places| %>
-  <section class="country">
-    <h2><%= country %> <span class="count">(<%= places.sum(&:posts_count) %>)</span></h2>
-    <% places.group_by(&:admin1_name).sort_by { |region, ps| [ -ps.sum(&:posts_count), region.to_s ] }.each do |region, in_region| %>
-      <div class="region">
-        <% if region.present? && region != country %><h3><%= region %></h3><% end %>
-        <p class="place-list">
-          <%= safe_join(in_region.sort_by { [ -it.posts_count, it.name ] }.map { |place| safe_join([ link_to(place.name, place_path(place)), " ", tag.span("(#{place.posts_count})", class: "count") ]) }, " | ") %>
-        </p>
-      </div>
-    <% end %>
+  <nav class="crumbs" data-places-picker-target="crumbs" hidden>
+    <a href="#">All continents</a>
+    <span data-places-picker-target="crumbContinent"></span>
+    <span data-places-picker-target="crumbCountry"></span>
+  </nav>
+
+  <section class="step" data-places-picker-target="continents">
+    <h2>Pick a continent</h2>
+    <p class="choices">
+      <% continents.each do |continent, countries| %>
+        <a href="#<%= picker_key(continent) %>" data-name="<%= continent %>"><%= continent %> <span class="count">(<%= countries.sum { |_, ps| count.(ps) } %>)</span></a>
+      <% end %>
+    </p>
   </section>
-<% end %>
+
+  <% continents.each do |continent, countries| %>
+    <section class="step" data-places-picker-target="countries" data-key="<%= picker_key(continent) %>">
+      <h2>Pick a country in <%= continent %></h2>
+      <p class="choices">
+        <% countries.each do |country, places| %>
+          <a href="#<%= picker_key(continent) %>/<%= picker_key(places.first.country_code) %>" data-name="<%= country %>"><%= country %> <span class="count">(<%= count.(places) %>)</span></a>
+        <% end %>
+      </p>
+    </section>
+  <% end %>
+
+  <% continents.each do |continent, countries| %>
+    <% countries.each do |country, places| %>
+      <section class="country" data-places-picker-target="country" data-key="<%= picker_key(continent) %>/<%= picker_key(places.first.country_code) %>">
+        <h2><%= country %> <span class="count">(<%= count.(places) %>)</span></h2>
+        <% regions = places.group_by { (it.admin1_name.presence unless it.admin1_name == country) }
+                           .sort_by { |region, ps| [ region ? 0 : 1, -count.(ps), region.to_s ] } %>
+        <% regions.each do |region, in_region| %>
+          <div class="region">
+            <h3><%= region || (regions.size > 1 ? "Elsewhere in #{country}" : country) %></h3>
+            <p class="place-list">
+              <%= safe_join(in_region.sort_by { [ -it.posts_count, it.name ] }.map { |place| safe_join([ link_to(place.name, place_path(place)), " ", tag.span("(#{place.posts_count})", class: "count") ]) }, " | ") %>
+            </p>
+            <ol class="posts">
+              <%= render partial: "posts/post", collection: in_region.flat_map { posts_by_place.fetch(it.id, []) }.sort_by { -it.posted_at.to_i } %>
+            </ol>
+          </div>
+        <% end %>
+      </section>
+    <% end %>
+  <% end %>
+</div>
 
 <% if @countries.empty? %><p class="empty">No places yet.</p><% end %>

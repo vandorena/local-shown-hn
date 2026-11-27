@@ -96,6 +96,17 @@ main { padding: 6px 0 10px; }
 .count { color: var(--dim); font-size: 8pt; }
 .nearby { margin: 14px 0 0; padding: 0 10px; color: var(--dim); }
 
+/* Places picker: continent, then country, then posts by subdivision. */
+.crumbs { padding: 0 10px; margin: 0 0 8px; color: var(--dim); }
+.crumbs a { color: var(--ink); }
+.crumbs a:hover, .choices a:hover { text-decoration: underline; }
+.crumbs b { color: var(--ink); }
+.step { padding: 0 10px; margin: 8px 0 14px; }
+.step h2 { margin: 0 0 6px; font-size: 10pt; }
+.choices { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; }
+.choices a { color: var(--ink); font-size: 10pt; }
+.region .posts { margin: 4px 0 8px; padding-left: 2.5em; }
+
 /* Footer: HN's orange rule, links and search box. */
 .site-footer {
   margin: 0 0 0;
