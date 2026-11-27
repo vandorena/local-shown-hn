@@ -51,7 +51,10 @@
         </p>
         <%= form_with url: root_path, method: :get, class: "search", role: "search" do |f| %>
           <label for="q">Search places:</label>
-          <%= f.search_field :q, id: "q", value: @query, "aria-label": "Search places" %>
+          <%= f.search_field :q, id: "q", value: @query, "aria-label": "Search places", list: "place-names", autocomplete: "off" %>
+          <datalist id="place-names">
+            <% search_suggestions.each do |name| %><option value="<%= name %>"></option><% end %>
+          </datalist>
         <% end %>
       </footer>
     </div>
